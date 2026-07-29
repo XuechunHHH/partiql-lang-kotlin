@@ -1,8 +1,25 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.plan.rex;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.partiql.plan.Operand;
 import org.partiql.plan.OperatorVisitor;
+import org.partiql.plan.RoutineRef;
 import org.partiql.spi.function.Fn;
 
 import java.util.List;
@@ -23,7 +40,23 @@ public abstract class RexCall extends RexBase {
      */
     @NotNull
     public static RexCall create(@NotNull Fn function, @NotNull List<Rex> args) {
-        return new Impl(function, args);
+        return new Impl(function, args, null);
+    }
+
+    /**
+     * Creates a new scalar function expression with resolved routine identity.
+     * @param function the function instance backing the call
+     * @param args the arguments to the function
+     * @param routineRef the resolved routine identity
+     * @return a new scalar function expression
+     */
+    @NotNull
+    public static RexCall create(
+            @NotNull Fn function,
+            @NotNull List<Rex> args,
+            @NotNull RoutineRef routineRef
+    ) {
+        return new Impl(function, args, routineRef);
     }
 
     /**
@@ -40,6 +73,14 @@ public abstract class RexCall extends RexBase {
      */
     @NotNull
     public abstract List<Rex> getArgs();
+
+    /**
+     * Returns the resolved routine identity, or {@code null} for legacy and manually constructed plans.
+     */
+    @Nullable
+    public RoutineRef getRoutineRef() {
+        return null;
+    }
 
     @NotNull
     @Override
@@ -63,10 +104,12 @@ public abstract class RexCall extends RexBase {
 
         private final Fn function;
         private final List<Rex> args;
+        private final RoutineRef routineRef;
 
-        private Impl(Fn function, List<Rex> args) {
+        private Impl(Fn function, List<Rex> args, RoutineRef routineRef) {
             this.function = function;
             this.args = args;
+            this.routineRef = routineRef;
         }
 
         @NotNull
@@ -80,6 +123,11 @@ public abstract class RexCall extends RexBase {
         public List<Rex> getArgs() {
             return args;
         }
+
+        @Nullable
+        @Override
+        public RoutineRef getRoutineRef() {
+            return routineRef;
+        }
     }
 }
-

@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.plan
 
 import org.partiql.plan.rel.Rel
@@ -281,6 +296,17 @@ public interface Operators {
     public fun call(function: Fn, args: List<Rex>): RexCall = RexCall.create(function, args)
 
     /**
+     * Create a [RexCall] instance with resolved routine identity.
+     *
+     * @param function
+     * @param args
+     * @param routineRef
+     * @return
+     */
+    public fun call(function: Fn, args: List<Rex>, routineRef: RoutineRef): RexCall =
+        RexCall.create(function, args, routineRef)
+
+    /**
      * Create a [RexCase] instance for a case-when with dynamic type (case is a reserved word in Java).
      *
      * @param match
@@ -318,6 +344,22 @@ public interface Operators {
      */
     public fun dispatch(name: String, functions: List<FnOverload>, args: List<Rex>): RexDispatch =
         RexDispatch.create(name, functions, args)
+
+    /**
+     * Create a [RexDispatch] instance with resolved routine identity.
+     *
+     * @param name
+     * @param functions
+     * @param args
+     * @param routineRef
+     * @return
+     */
+    public fun dispatch(
+        name: String,
+        functions: List<FnOverload>,
+        args: List<Rex>,
+        routineRef: RoutineRef,
+    ): RexDispatch = RexDispatch.create(name, functions, args, routineRef)
 
     /**
      * Create a [RexError] instance.
