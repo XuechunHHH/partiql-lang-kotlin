@@ -83,6 +83,11 @@ public final class org/partiql/spi/catalog/Catalog$DefaultImpls {
 	public static fun resolveTable (Lorg/partiql/spi/catalog/Catalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Lorg/partiql/spi/catalog/Name;
 }
 
+public final class org/partiql/spi/catalog/CatalogNameAmbiguousException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/util/Collection;)V
+	public final fun getCatalogNames ()Ljava/util/List;
+}
+
 public abstract interface class org/partiql/spi/catalog/Catalogs {
 	public static final field Companion Lorg/partiql/spi/catalog/Catalogs$Companion;
 	public static fun builder ()Lorg/partiql/spi/catalog/Catalogs$Builder;
@@ -228,6 +233,25 @@ public final class org/partiql/spi/catalog/Path : java/lang/Iterable, kotlin/jvm
 
 public final class org/partiql/spi/catalog/Path$Companion {
 	public final fun of ([Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Path;
+}
+
+public final class org/partiql/spi/catalog/RoutineBinding {
+	public fun <init> (Lorg/partiql/spi/function/RoutineId;Lorg/partiql/spi/catalog/Name;Ljava/util/Collection;)V
+	public final fun getCanonicalName ()Lorg/partiql/spi/catalog/Name;
+	public final fun getOverloads ()Ljava/util/Collection;
+	public final fun getProviderId ()Lorg/partiql/spi/function/RoutineId;
+}
+
+public abstract interface class org/partiql/spi/catalog/RoutineCatalog : org/partiql/spi/catalog/Catalog {
+	public abstract fun resolveAggregations (Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Ljava/util/Collection;
+	public abstract fun resolveFunctions (Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Ljava/util/Collection;
+}
+
+public final class org/partiql/spi/catalog/RoutineCatalog$DefaultImpls {
+	public static fun getAggregations (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Ljava/lang/String;)Ljava/util/Collection;
+	public static fun getFunctions (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Ljava/lang/String;)Ljava/util/Collection;
+	public static fun getTable (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Name;)Lorg/partiql/spi/catalog/Table;
+	public static fun resolveTable (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Lorg/partiql/spi/catalog/Name;
 }
 
 public abstract interface class org/partiql/spi/catalog/Session {
@@ -451,6 +475,14 @@ public final class org/partiql/spi/function/Parameter {
 	public fun <init> (Ljava/lang/String;Lorg/partiql/spi/types/PType;)V
 	public fun getName ()Ljava/lang/String;
 	public fun getType ()Lorg/partiql/spi/types/PType;
+}
+
+public final class org/partiql/spi/function/RoutineId {
+	public fun <init> (Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class org/partiql/spi/function/RoutineOverloadSignature {

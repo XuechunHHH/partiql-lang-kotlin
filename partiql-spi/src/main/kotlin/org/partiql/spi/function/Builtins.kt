@@ -1,7 +1,25 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.spi.function
 
 /* ktlint-disable no-wildcard-imports */
+import org.partiql.spi.catalog.Identifier
+import org.partiql.spi.catalog.RoutineBinding
 import org.partiql.spi.function.builtins.*
+import org.partiql.spi.utils.FunctionUtils
 
 /**
  * This is where we will register all SQL builtins; consider raising a "library" interface.
@@ -17,6 +35,12 @@ internal object Builtins {
     fun getFunctions(name: String): Collection<FnOverload> = functions[name] ?: emptyList()
 
     fun getAggregations(name: String): Collection<AggOverload> = aggregations[name] ?: emptyList()
+
+    fun resolveFunctions(identifier: Identifier): Collection<RoutineBinding<FnOverload>> =
+        registry.resolveFunctions(identifier)
+
+    fun resolveAggregations(identifier: Identifier): Collection<RoutineBinding<AggOverload>> =
+        registry.resolveAggregations(identifier)
 
     private val functions = listOf<FnOverload>(
         Fn_ABS__INT8__INT8,
@@ -301,4 +325,105 @@ internal object Builtins {
         Agg_SUM__ANY__ANY,
         Agg_GROUP_AS__ANY__ANY
     ).groupBy { it.signature.name }
+
+    private val hiddenRoutineNames = mapOf(
+        FunctionUtils.hide("and") to "and",
+        FunctionUtils.hide("between") to "between",
+        FunctionUtils.hide("bitwise_and") to "bitwise_and",
+        FunctionUtils.hide("coll_any_all") to "coll_any_all",
+        FunctionUtils.hide("coll_any_distinct") to "coll_any_distinct",
+        FunctionUtils.hide("coll_avg_all") to "coll_avg_all",
+        FunctionUtils.hide("coll_avg_distinct") to "coll_avg_distinct",
+        FunctionUtils.hide("coll_count_all") to "coll_count_all",
+        FunctionUtils.hide("coll_count_distinct") to "coll_count_distinct",
+        FunctionUtils.hide("coll_every_all") to "coll_every_all",
+        FunctionUtils.hide("coll_every_distinct") to "coll_every_distinct",
+        FunctionUtils.hide("coll_max_all") to "coll_max_all",
+        FunctionUtils.hide("coll_max_distinct") to "coll_max_distinct",
+        FunctionUtils.hide("coll_min_all") to "coll_min_all",
+        FunctionUtils.hide("coll_min_distinct") to "coll_min_distinct",
+        FunctionUtils.hide("coll_some_all") to "coll_some_all",
+        FunctionUtils.hide("coll_some_distinct") to "coll_some_distinct",
+        FunctionUtils.hide("coll_sum_all") to "coll_sum_all",
+        FunctionUtils.hide("coll_sum_distinct") to "coll_sum_distinct",
+        FunctionUtils.hide("concat") to "concat",
+        FunctionUtils.hide("current_date") to "current_date",
+        FunctionUtils.hide("current_user") to "current_user",
+        FunctionUtils.hide("date_add_day") to "date_add_day",
+        FunctionUtils.hide("date_add_hour") to "date_add_hour",
+        FunctionUtils.hide("date_add_minute") to "date_add_minute",
+        FunctionUtils.hide("date_add_month") to "date_add_month",
+        FunctionUtils.hide("date_add_second") to "date_add_second",
+        FunctionUtils.hide("date_add_year") to "date_add_year",
+        FunctionUtils.hide("date_diff_day") to "date_diff_day",
+        FunctionUtils.hide("date_diff_hour") to "date_diff_hour",
+        FunctionUtils.hide("date_diff_minute") to "date_diff_minute",
+        FunctionUtils.hide("date_diff_month") to "date_diff_month",
+        FunctionUtils.hide("date_diff_second") to "date_diff_second",
+        FunctionUtils.hide("date_diff_year") to "date_diff_year",
+        FunctionUtils.hide("divide") to "divide",
+        FunctionUtils.hide("eq") to "eq",
+        FunctionUtils.hide("extract_day") to "extract_day",
+        FunctionUtils.hide("extract_hour") to "extract_hour",
+        FunctionUtils.hide("extract_minute") to "extract_minute",
+        FunctionUtils.hide("extract_month") to "extract_month",
+        FunctionUtils.hide("extract_second") to "extract_second",
+        FunctionUtils.hide("extract_timezone_hour") to "extract_timezone_hour",
+        FunctionUtils.hide("extract_timezone_minute") to "extract_timezone_minute",
+        FunctionUtils.hide("extract_year") to "extract_year",
+        FunctionUtils.hide("gt") to "gt",
+        FunctionUtils.hide("gte") to "gte",
+        FunctionUtils.hide("in_collection") to "in_collection",
+        FunctionUtils.hide("is_any") to "is_any",
+        FunctionUtils.hide("is_bag") to "is_bag",
+        FunctionUtils.hide("is_binary") to "is_binary",
+        FunctionUtils.hide("is_blob") to "is_blob",
+        FunctionUtils.hide("is_bool") to "is_bool",
+        FunctionUtils.hide("is_byte") to "is_byte",
+        FunctionUtils.hide("is_char") to "is_char",
+        FunctionUtils.hide("is_clob") to "is_clob",
+        FunctionUtils.hide("is_date") to "is_date",
+        FunctionUtils.hide("is_decimal") to "is_decimal",
+        FunctionUtils.hide("is_false") to "is_false",
+        FunctionUtils.hide("is_float32") to "is_float32",
+        FunctionUtils.hide("is_float64") to "is_float64",
+        FunctionUtils.hide("is_int") to "is_int",
+        FunctionUtils.hide("is_int16") to "is_int16",
+        FunctionUtils.hide("is_int32") to "is_int32",
+        FunctionUtils.hide("is_int64") to "is_int64",
+        FunctionUtils.hide("is_int8") to "is_int8",
+        FunctionUtils.hide("is_interval") to "is_interval",
+        FunctionUtils.hide("is_list") to "is_list",
+        FunctionUtils.hide("is_map") to "is_map",
+        FunctionUtils.hide("is_missing") to "is_missing",
+        FunctionUtils.hide("is_null") to "is_null",
+        FunctionUtils.hide("is_string") to "is_string",
+        FunctionUtils.hide("is_struct") to "is_struct",
+        FunctionUtils.hide("is_time") to "is_time",
+        FunctionUtils.hide("is_timestamp") to "is_timestamp",
+        FunctionUtils.hide("is_true") to "is_true",
+        FunctionUtils.hide("is_unknown") to "is_unknown",
+        FunctionUtils.hide("like") to "like",
+        FunctionUtils.hide("like_escape") to "like_escape",
+        FunctionUtils.hide("lt") to "lt",
+        FunctionUtils.hide("lte") to "lte",
+        FunctionUtils.hide("minus") to "minus",
+        FunctionUtils.hide("neg") to "neg",
+        FunctionUtils.hide("not") to "not",
+        FunctionUtils.hide("or") to "or",
+        FunctionUtils.hide("overlaps") to "overlaps",
+        FunctionUtils.hide("plus") to "plus",
+        FunctionUtils.hide("pos") to "pos",
+        FunctionUtils.hide("position") to "position",
+        FunctionUtils.hide("sql_in_collection") to "sql_in_collection",
+        FunctionUtils.hide("times") to "times",
+        FunctionUtils.hide("trim") to "trim",
+        FunctionUtils.hide("trim_chars") to "trim_chars",
+        FunctionUtils.hide("trim_leading") to "trim_leading",
+        FunctionUtils.hide("trim_leading_chars") to "trim_leading_chars",
+        FunctionUtils.hide("trim_trailing") to "trim_trailing",
+        FunctionUtils.hide("trim_trailing_chars") to "trim_trailing_chars",
+    )
+
+    private val registry = BuiltinRoutineRegistry(functions, aggregations, hiddenRoutineNames)
 }
