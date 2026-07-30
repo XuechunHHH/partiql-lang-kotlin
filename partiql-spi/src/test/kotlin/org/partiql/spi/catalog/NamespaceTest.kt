@@ -13,28 +13,31 @@
  * permissions and limitations under the License.
  */
 
-package org.partiql.spi.function
+package org.partiql.spi.catalog
 
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
-class RoutineIdTest {
+class NamespaceTest {
 
     @Test
-    fun rejectsEmptyValue() {
-        assertThrows<IllegalArgumentException> {
-            RoutineId("")
-        }
+    fun copiesFactoryInput() {
+        val levels = mutableListOf("example", "functions")
+        val namespace = Namespace.of(levels)
+
+        levels[0] = "changed"
+
+        assertEquals(listOf("example", "functions"), namespace.toList())
     }
 
     @Test
-    fun preservesOpaqueCaseSensitiveValue() {
-        val id = RoutineId("com.example.provider.mixedCaseRoutine")
+    fun getLevelsReturnsDefensiveCopy() {
+        val namespace = Namespace.of("example", "functions")
+        val levels = namespace.getLevels()
 
-        assertEquals("com.example.provider.mixedCaseRoutine", id.value)
-        assertEquals(id, RoutineId("com.example.provider.mixedCaseRoutine"))
-        assertNotEquals(id, RoutineId("com.example.provider.mixedcaseroutine"))
+        levels[0] = "changed"
+
+        assertArrayEquals(arrayOf("example", "functions"), namespace.getLevels())
     }
 }

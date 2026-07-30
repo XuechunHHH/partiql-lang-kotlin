@@ -16,6 +16,7 @@
 package org.partiql.spi.catalog
 
 import org.partiql.spi.function.RoutineId
+import java.util.Collections
 
 /**
  * A catalog-local routine and all of its overloads.
@@ -25,8 +26,9 @@ import org.partiql.spi.function.RoutineId
  */
 public class RoutineBinding<T>(
     public val providerId: RoutineId,
-    public val canonicalName: Name,
+    canonicalName: Name,
     overloads: Collection<T>,
 ) {
-    public val overloads: Collection<T> = overloads.toList()
+    public val canonicalName: Name = Name.of(canonicalName.toList())
+    public val overloads: Collection<T> = Collections.unmodifiableList(ArrayList(overloads))
 }

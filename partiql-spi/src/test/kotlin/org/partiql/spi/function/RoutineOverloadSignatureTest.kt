@@ -16,25 +16,28 @@
 package org.partiql.spi.function
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.partiql.spi.types.PType
 
-class RoutineIdTest {
+class RoutineOverloadSignatureTest {
 
     @Test
-    fun rejectsEmptyValue() {
-        assertThrows<IllegalArgumentException> {
-            RoutineId("")
-        }
+    fun copiesParameterTypes() {
+        val parameterTypes = mutableListOf(PType.string())
+        val signature = RoutineOverloadSignature("tokenize", parameterTypes)
+
+        parameterTypes += PType.dynamic()
+
+        assertEquals(listOf(PType.string()), signature.parameterTypes)
     }
 
     @Test
-    fun preservesOpaqueCaseSensitiveValue() {
-        val id = RoutineId("com.example.provider.mixedCaseRoutine")
+    fun parameterTypesAreJavaUnmodifiable() {
+        val signature = RoutineOverloadSignature("tokenize", listOf(PType.string()))
 
-        assertEquals("com.example.provider.mixedCaseRoutine", id.value)
-        assertEquals(id, RoutineId("com.example.provider.mixedCaseRoutine"))
-        assertNotEquals(id, RoutineId("com.example.provider.mixedcaseroutine"))
+        assertThrows<UnsupportedOperationException> {
+            signature.parameterTypes.add(PType.dynamic())
+        }
     }
 }

@@ -20,6 +20,17 @@ import org.partiql.spi.function.FnOverload
 
 /**
  * Optional catalog extension for exact, namespace-aware routine lookup.
+ *
+ * Implement this interface when a catalog exposes routines through qualified names or namespaces in [Session.getPath].
+ * The supplied identifiers are catalog-local: they contain the namespace and routine name, but never the catalog name.
+ *
+ * These resolution methods are authoritative for an implementing catalog. PLK does not fall back to [Catalog.getFunctions]
+ * or [Catalog.getAggregations] when either method returns an empty collection. Implementations must therefore combine every
+ * routine source they intend to expose behind these methods. Omitting a source makes its routines invisible to qualified and
+ * path-based namespace-aware resolution.
+ *
+ * A legacy [Catalog] that does not implement this interface retains bare-name lookup for unqualified calls. Qualified routine
+ * calls require the selected catalog to implement this interface.
  */
 public interface RoutineCatalog : Catalog {
 
