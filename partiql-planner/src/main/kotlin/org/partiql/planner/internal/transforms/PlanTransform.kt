@@ -6,6 +6,7 @@ import org.partiql.plan.Exclusion
 import org.partiql.plan.JoinType
 import org.partiql.plan.Operators
 import org.partiql.plan.Plan
+import org.partiql.plan.RoutineRef
 import org.partiql.plan.SymbolTable
 import org.partiql.plan.WindowFunctionNode
 import org.partiql.plan.WindowFunctionSignature
@@ -19,6 +20,7 @@ import org.partiql.plan.rex.RexStruct
 import org.partiql.plan.rex.RexType
 import org.partiql.plan.rex.RexVar
 import org.partiql.planner.internal.PlannerFlag
+import org.partiql.planner.internal.ir.Ref
 import org.partiql.planner.internal.ir.Rel
 import org.partiql.planner.internal.ir.SetQuantifier
 import org.partiql.planner.internal.ir.visitor.PlanBaseVisitor
@@ -182,13 +184,21 @@ internal class PlanTransform(private val flags: Set<PlannerFlag>, private val us
             val args = node.args.map { visitRex(it, it.type) }
             val fns = node.candidates.map { it.fn.signature }
             val name = node.candidates.first().fn.name.getName()
-            return operators.dispatch(name, fns, args)
+            val routines = node.candidates.map { it.fn.routine }.distinct()
+            check(routines.size == 1) { "Dynamic call candidates must share one routine identity" }
+            return when (val routine = routines.single()) {
+                null -> operators.dispatch(name, fns, args)
+                else -> operators.dispatch(name, fns, args, routine.toPublic())
+            }
         }
 
         override fun visitRexOpCallStatic(node: IRex.Op.Call.Static, ctx: PType): Any {
             val fn = node.fn
             val args = node.args.map { visitRex(it, it.type) }
-            return operators.call(fn, args)
+            return when (val routine = node.routine) {
+                null -> operators.call(fn, args)
+                else -> operators.call(fn, args, routine.toPublic())
+            }
         }
 
         override fun visitRexOpCallUnresolved(node: IRex.Op.Call.Unresolved, ctx: PType): Any {
@@ -312,8 +322,13 @@ internal class PlanTransform(private val flags: Set<PlannerFlag>, private val us
             val agg = node.agg.signature
             val args = node.args.map { visitRex(it, it.type) }
             val isDistinct = node.setq == SetQuantifier.DISTINCT
-            return RelAggregate.measure(agg, args, isDistinct)
+            return when (val routine = node.agg.routine) {
+                null -> RelAggregate.measure(agg, args, isDistinct)
+                else -> RelAggregate.measure(agg, args, isDistinct, routine.toPublic())
+            }
         }
+
+        private fun Ref.Routine.toPublic(): RoutineRef = RoutineRef(providerId, catalog, name)
 
         override fun visitRelOpJoin(node: IRel.Op.Join, ctx: PType): Any {
             val lhs = visitRel(node.lhs, ctx)

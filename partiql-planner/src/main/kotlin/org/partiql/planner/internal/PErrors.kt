@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.planner.internal
 
 import org.partiql.spi.SourceLocation
@@ -95,6 +110,29 @@ internal object PErrors {
                 "ARG_TYPES" to argTypes,
                 "CANDIDATES" to candidates
             )
+        )
+    }
+
+    /**
+     * @param location see [PError.location]
+     * @param fnId see [PError.FUNCTION_AMBIGUOUS]
+     * @param candidates see [PError.FUNCTION_AMBIGUOUS]
+     * @return an error representing [PError.FUNCTION_AMBIGUOUS]
+     */
+    internal fun functionAmbiguous(
+        location: SourceLocation?,
+        fnId: Identifier?,
+        candidates: List<String>?,
+    ): PError {
+        return PError(
+            PError.FUNCTION_AMBIGUOUS,
+            Severity.ERROR(),
+            PErrorKind.SEMANTIC(),
+            location,
+            mapOf(
+                "FN_ID" to fnId,
+                "CANDIDATES" to candidates,
+            ),
         )
     }
 

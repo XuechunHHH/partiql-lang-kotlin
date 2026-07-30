@@ -20,6 +20,8 @@ import org.partiql.planner.internal.CoercionFamily
 import org.partiql.planner.internal.Env
 import org.partiql.planner.internal.PErrors
 import org.partiql.planner.internal.PlannerFlag
+import org.partiql.planner.internal.RoutineCallShape
+import org.partiql.planner.internal.RoutineSelection
 import org.partiql.planner.internal.exclude.ExcludeRepr
 import org.partiql.planner.internal.ir.PlanNode
 import org.partiql.planner.internal.ir.Rel
@@ -1142,19 +1144,34 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
         override fun visitRexOpCallUnresolved(node: Rex.Op.Call.Unresolved, ctx: CompilerType?): Rex {
             // Type the arguments
             val args = node.args.map { visitRex(it, null) }
-            // Attempt to resolve in the environment
-            val rex = env.resolveFn(node.identifier, args)
-            if (rex == null) {
-                val candidates = env.getCandidates(node.identifier, args)
-                val argTypes = args.map { it.type }
-                val problem = when (candidates.isEmpty()) {
-                    true -> PErrors.functionNotFound(null, node.identifier, argTypes)
-                    false -> PErrors.functionTypeMismatch(null, node.identifier, argTypes, candidates)
+
+            val argTypes = args.map { it.type }
+            val shape = RoutineCallShape.from(node.identifier, args.size)
+            return when (val selection = env.selectRoutine(node.identifier, shape)) {
+                RoutineSelection.NotFound,
+                is RoutineSelection.Aggregate,
+                -> errorRexAndReport(
+                    _listener,
+                    PErrors.functionNotFound(null, node.identifier, argTypes),
+                )
+
+                is RoutineSelection.Ambiguous -> errorRexAndReport(
+                    _listener,
+                    PErrors.functionAmbiguous(null, node.identifier, selection.candidates),
+                )
+
+                is RoutineSelection.Scalar -> {
+                    val resolved = env.resolveFn(selection, args)
+                    if (resolved == null) {
+                        return errorRexAndReport(
+                            _listener,
+                            PErrors.functionTypeMismatch(null, node.identifier, argTypes, selection.match.overloads),
+                        )
+                    }
+                    // Pass off to Rex.Op.Call.Static or Rex.Op.Call.Dynamic for typing.
+                    visitRex(resolved, null)
                 }
-                return errorRexAndReport(_listener, problem)
             }
-            // Pass off to Rex.Op.Call.Static or Rex.Op.Call.Dynamic for typing.
-            return visitRex(rex, null)
         }
 
         /**
@@ -1181,11 +1198,11 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
 
             if (argIsAlwaysMissing && instance.signature.isMissingCall) {
                 _listener.report(PErrors.alwaysMissing(null))
-                return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args))
+                return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args, node.routine))
             }
 
             // Infer fn return type
-            return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args))
+            return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args, node.routine))
         }
 
         /**
@@ -1668,11 +1685,22 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
 
         fun resolveAgg(node: Rel.Op.Aggregate.Call.Unresolved): Pair<Rel.Op.Aggregate.Call, CompilerType> {
             // Type the arguments
-            val args = node.args.map { visitRex(it, null) }
-            val argsResolved = Rel.Op.Aggregate.Call.Unresolved(node.name, node.setq, args)
+            val typedArgs = node.args.map { visitRex(it, null) }
+            val shape = RoutineCallShape.from(node.identifier, typedArgs.size)
+            val selection = env.selectRoutine(node.identifier, shape)
+            val args = when {
+                selection is RoutineSelection.Aggregate && shape.aggregateArity != typedArgs.size ->
+                    listOf(rex(CompilerType(PType.integer()), Rex.Op.Lit(Datum.integer(1))))
+                else -> typedArgs
+            }
+            val argsResolved = Rel.Op.Aggregate.Call.Unresolved(node.identifier, node.setq, args)
 
             // Resolve the function
-            val call = env.resolveAgg(node.name, node.setq, args) ?: return argsResolved to CompilerType(PType.dynamic())
+            if (selection !is RoutineSelection.Aggregate) {
+                return argsResolved to CompilerType(PType.dynamic())
+            }
+            val call = env.resolveAgg(selection, node.setq, args)
+                ?: return argsResolved to CompilerType(PType.dynamic())
             // TODO pass argument types to compute the return type.
             val returnType = call.agg.signature.signature.returns
             return call to CompilerType(returnType)

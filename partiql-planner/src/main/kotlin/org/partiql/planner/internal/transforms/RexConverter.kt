@@ -652,9 +652,6 @@ internal object RexConverter {
             val type = (ANY)
             // Fn
             val id = AstToPlan.convert(node.function)
-            if (id.hasQualifier()) {
-                error("Qualified function calls are not currently supported.")
-            }
             if (id.matches("TUPLEUNION")) {
                 return visitExprCallTupleUnion(node, context)
             }

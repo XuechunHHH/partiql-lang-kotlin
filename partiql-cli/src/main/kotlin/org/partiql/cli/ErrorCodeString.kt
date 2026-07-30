@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.cli
 
 import org.partiql.spi.errors.PError
@@ -19,6 +34,7 @@ enum class ErrorCodeString(val code: Int) {
     UNDEFINED_CAST(PError.UNDEFINED_CAST),
     FUNCTION_NOT_FOUND(PError.FUNCTION_NOT_FOUND),
     FUNCTION_TYPE_MISMATCH(PError.FUNCTION_TYPE_MISMATCH),
+    FUNCTION_AMBIGUOUS(PError.FUNCTION_AMBIGUOUS),
     VAR_REF_NOT_FOUND(PError.VAR_REF_NOT_FOUND),
     VAR_REF_AMBIGUOUS(PError.VAR_REF_AMBIGUOUS),
     TYPE_UNEXPECTED(PError.TYPE_UNEXPECTED),

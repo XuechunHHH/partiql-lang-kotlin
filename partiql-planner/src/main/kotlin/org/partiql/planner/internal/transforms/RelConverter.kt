@@ -16,7 +16,6 @@
 
 package org.partiql.planner.internal.transforms
 
-import org.partiql.ast.Ast.exprLit
 import org.partiql.ast.AstNode
 import org.partiql.ast.AstVisitor
 import org.partiql.ast.Exclude
@@ -29,7 +28,6 @@ import org.partiql.ast.GroupByStrategy
 import org.partiql.ast.JoinType
 import org.partiql.ast.Let
 import org.partiql.ast.Let.Binding
-import org.partiql.ast.Literal.intNum
 import org.partiql.ast.Nulls
 import org.partiql.ast.Order
 import org.partiql.ast.OrderBy
@@ -99,6 +97,7 @@ import org.partiql.planner.internal.transforms.AggregationTransform.syntheticAgg
 import org.partiql.planner.internal.typer.CompilerType
 import org.partiql.planner.internal.typer.PlanTyper.Companion.toCType
 import org.partiql.planner.internal.util.BinderUtils.toBinder
+import org.partiql.spi.catalog.Identifier
 import org.partiql.spi.catalog.Identifier.Simple
 import org.partiql.spi.types.PType
 import org.partiql.spi.value.Datum
@@ -463,27 +462,13 @@ internal object RelConverter {
                 schema.add(binding)
                 val args = expr.args.map { arg -> arg.toRex(env) }
                 val id = AstToPlan.convert(expr.function)
-                if (id.hasQualifier()) {
-                    error("Qualified aggregation calls are not supported.")
+                val setq = when (expr.setq?.code()) {
+                    null -> org.partiql.planner.internal.ir.SetQuantifier.ALL
+                    SetQuantifier.ALL -> org.partiql.planner.internal.ir.SetQuantifier.ALL
+                    SetQuantifier.DISTINCT -> org.partiql.planner.internal.ir.SetQuantifier.DISTINCT
+                    else -> error("Unexpected SetQuantifier type: ${expr.setq}")
                 }
-                // lowercase normalize all calls
-                val name = id.getIdentifier().getText().lowercase()
-                if (name == "count" && expr.args.isEmpty()) {
-                    // Yet another special case for `COUNT(*)`
-                    relOpAggregateCallUnresolved(
-                        name,
-                        org.partiql.planner.internal.ir.SetQuantifier.ALL,
-                        args = listOf(exprLit(intNum(1)).toRex(env))
-                    )
-                } else {
-                    val setq = when (expr.setq?.code()) {
-                        null -> org.partiql.planner.internal.ir.SetQuantifier.ALL
-                        SetQuantifier.ALL -> org.partiql.planner.internal.ir.SetQuantifier.ALL
-                        SetQuantifier.DISTINCT -> org.partiql.planner.internal.ir.SetQuantifier.DISTINCT
-                        else -> error("Unexpected SetQuantifier type: ${expr.setq}")
-                    }
-                    relOpAggregateCallUnresolved(name, setq, args)
-                }
+                relOpAggregateCallUnresolved(id, setq, args)
             }.toMutableList()
 
             // Add GROUP_AS aggregation
@@ -498,7 +483,13 @@ internal object RelConverter {
                         )
                     }
                     val arg = listOf(rex(ANY, rexOpStruct(fields)))
-                    calls.add(relOpAggregateCallUnresolved("group_as", org.partiql.planner.internal.ir.SetQuantifier.ALL, arg))
+                    calls.add(
+                        relOpAggregateCallUnresolved(
+                            Identifier.regular("group_as"),
+                            org.partiql.planner.internal.ir.SetQuantifier.ALL,
+                            arg,
+                        )
+                    )
                 }
             }
             var groups = emptyList<Rex>()

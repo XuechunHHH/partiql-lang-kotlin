@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.cli.pipeline
 
 import org.partiql.cli.ErrorCodeString
@@ -21,6 +36,7 @@ object ErrorMessageFormatter {
             ErrorCodeString.UNRECOGNIZED_TOKEN -> unrecognizedToken(error)
             ErrorCodeString.FUNCTION_TYPE_MISMATCH -> fnTypeMismatch(error)
             ErrorCodeString.FUNCTION_NOT_FOUND -> fnTypeMismatch(error) // TODO: Add dedicated message for this.
+            ErrorCodeString.FUNCTION_AMBIGUOUS -> fnAmbiguous(error)
             ErrorCodeString.UNDEFINED_CAST -> undefinedCast(error)
             ErrorCodeString.INTERNAL_ERROR -> internalError(error) // TODO: Make the verbosity a variable
             ErrorCodeString.PATH_KEY_NEVER_SUCCEEDS -> pathNeverSucceeds("key")
@@ -259,6 +275,20 @@ object ErrorMessageFormatter {
         return buildString {
             append("Undefined function$fnStr.")
         }
+    }
+
+    /**
+     * @see PError.FUNCTION_AMBIGUOUS
+     */
+    private fun fnAmbiguous(error: PError): String {
+        val functionName = error.getOrNull("FN_ID", Identifier::class.java)
+        val candidates = error.getListOrNull("CANDIDATES", String::class.java)
+        val fnNameStr = prepare(unHideFunctionName(functionName), " ", "")
+        val candidatesStr = when (candidates.isNullOrEmpty()) {
+            true -> ""
+            false -> candidates.joinToString(prefix = " Candidates: ", postfix = ".")
+        }
+        return "Ambiguous function$fnNameStr.$candidatesStr"
     }
 
     private fun unHideFunctionName(functionName: Identifier?): String {

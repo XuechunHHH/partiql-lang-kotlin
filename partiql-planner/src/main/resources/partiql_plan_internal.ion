@@ -9,6 +9,7 @@ imports::{
     fn_signature::'org.partiql.spi.function.FnOverload',
     fn_instance::'org.partiql.spi.function.Fn',
     agg_signature::'org.partiql.spi.function.Agg',
+    routine_id::'org.partiql.spi.function.RoutineId',
     table::'org.partiql.spi.catalog.Table',
   ],
 }
@@ -30,15 +31,22 @@ ref::[
     // TEMPORARY FOR V1 EXECUTION
     table: table,
   },
+  routine::{
+    provider_id: routine_id,
+    catalog: string,
+    name: name,
+  },
   fn::{
     catalog: string,
     name: name,
     signature: fn_signature,
+    routine: optional::'.ref.routine',
   },
   agg::{
     catalog: string,
     name: name,
     signature: agg_signature,
+    routine: optional::'.ref.routine',
   },
   _::[
     cast::{
@@ -131,6 +139,7 @@ rex::{
       static::{
         fn: fn_instance,
         args: list::[rex],
+        routine: optional::'.ref.routine',
       },
 
       // Represents a dynamic function call. If all candidates are exhausted, dynamic calls will return MISSING.
@@ -377,7 +386,7 @@ rel::{
       _: [
         call::[
           unresolved::{
-            name: string,
+            identifier: identifier,
             setq: set_quantifier,
             args: list::[rex],
           },

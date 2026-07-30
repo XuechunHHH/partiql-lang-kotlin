@@ -133,10 +133,21 @@ class CatalogTest {
         val catalog = catalog_with(listOf(scalar_overload("count")), emptyList())
         val result = testQuery(query, catalog)
 
-        assert(result is TestResult.Failure)
-        val errs = (result as TestResult.Failure).err
-        assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assert(result is TestResult.Success)
+        val datum = (result as TestResult.Success).result
+        val expected = Datum.bagVararg(
+            Datum.struct(
+                Field.of("a", Datum.doublePrecision(1.0)),
+                Field.of("b", Datum.doublePrecision(1.0)),
+                Field.of("C", Datum.doublePrecision(1.0))
+            ),
+            Datum.struct(
+                Field.of("a", Datum.doublePrecision(2.0)),
+                Field.of("b", Datum.doublePrecision(2.0)),
+                Field.of("C", Datum.doublePrecision(2.0))
+            )
+        )
+        assertEquals(0, Datum.comparator().compare(expected, datum))
     }
 
     @Test
@@ -173,10 +184,16 @@ class CatalogTest {
         val catalog = catalog_with(emptyList(), listOf(aggregate_overload("upper")))
         val result = testQuery(query, catalog)
 
-        assert(result is TestResult.Failure)
-        val errs = (result as TestResult.Failure).err
-        assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assert(result is TestResult.Success)
+        val datum = (result as TestResult.Success).result
+        val expected = Datum.bagVararg(
+            Datum.struct(
+                Field.of("a", Datum.doublePrecision(3.0)),
+                Field.of("b", Datum.doublePrecision(3.0)),
+                Field.of("C", Datum.doublePrecision(3.0))
+            ),
+        )
+        assertEquals(0, Datum.comparator().compare(expected, datum))
     }
 
     @Test
@@ -188,7 +205,7 @@ class CatalogTest {
         assert(result is TestResult.Failure)
         val errs = (result as TestResult.Failure).err
         assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assertEquals(PError.FUNCTION_AMBIGUOUS, errs.errors[0].code())
     }
 
     sealed class TestResult {

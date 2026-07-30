@@ -6,6 +6,7 @@ import org.partiql.planner.internal.ir.builder.RefAggBuilder
 import org.partiql.planner.internal.ir.builder.RefCastBuilder
 import org.partiql.planner.internal.ir.builder.RefFnBuilder
 import org.partiql.planner.internal.ir.builder.RefObjBuilder
+import org.partiql.planner.internal.ir.builder.RefRoutineBuilder
 import org.partiql.planner.internal.ir.builder.RelBindingBuilder
 import org.partiql.planner.internal.ir.builder.RelBuilder
 import org.partiql.planner.internal.ir.builder.RelOpAggregateBuilder
@@ -74,6 +75,7 @@ import org.partiql.spi.catalog.Name
 import org.partiql.spi.catalog.Table
 import org.partiql.spi.function.Fn
 import org.partiql.spi.function.FnOverload
+import org.partiql.spi.function.RoutineId
 import org.partiql.spi.value.Datum
 import kotlin.random.Random
 
@@ -106,6 +108,7 @@ internal data class PartiQLPlan(
 internal sealed class Ref : PlanNode() {
     public override fun <R, C> accept(visitor: PlanVisitor<R, C>, ctx: C): R = when (this) {
         is Obj -> visitor.visitRefObj(this, ctx)
+        is Routine -> visitor.visitRefRoutine(this, ctx)
         is Fn -> visitor.visitRefFn(this, ctx)
         is Agg -> visitor.visitRefAgg(this, ctx)
     }
@@ -126,12 +129,32 @@ internal sealed class Ref : PlanNode() {
         }
     }
 
+    internal data class Routine(
+        @JvmField internal val providerId: RoutineId,
+        @JvmField internal val catalog: String,
+        @JvmField internal val name: Name,
+    ) : Ref() {
+        public override val children: List<PlanNode> = emptyList()
+
+        override fun <R, C> accept(visitor: PlanVisitor<R, C>, ctx: C): R = visitor.visitRefRoutine(this, ctx)
+
+        internal companion object {
+            @JvmStatic
+            internal fun builder(): RefRoutineBuilder = RefRoutineBuilder()
+        }
+    }
+
     internal data class Fn(
         @JvmField internal val catalog: String,
         @JvmField internal val name: Name,
         @JvmField internal val signature: FnOverload,
+        @JvmField internal val routine: Routine?,
     ) : Ref() {
-        public override val children: List<PlanNode> = emptyList()
+        public override val children: List<PlanNode> by lazy {
+            val kids = mutableListOf<PlanNode?>()
+            routine?.let { kids.add(it) }
+            kids.filterNotNull()
+        }
 
         override fun <R, C> accept(visitor: PlanVisitor<R, C>, ctx: C): R = visitor.visitRefFn(this, ctx)
 
@@ -145,8 +168,13 @@ internal sealed class Ref : PlanNode() {
         @JvmField internal val catalog: String,
         @JvmField internal val name: Name,
         @JvmField internal val signature: org.partiql.spi.function.Agg,
+        @JvmField internal val routine: Routine?,
     ) : Ref() {
-        public override val children: List<PlanNode> = emptyList()
+        public override val children: List<PlanNode> by lazy {
+            val kids = mutableListOf<PlanNode?>()
+            routine?.let { kids.add(it) }
+            kids.filterNotNull()
+        }
 
         override fun <R, C> accept(visitor: PlanVisitor<R, C>, ctx: C): R = visitor.visitRefAgg(this, ctx)
 
@@ -455,10 +483,12 @@ internal data class Rex(
             internal data class Static(
                 @JvmField internal val fn: Fn,
                 @JvmField internal val args: List<Rex>,
+                @JvmField internal val routine: Ref.Routine?,
             ) : Call() {
                 public override val children: List<PlanNode> by lazy {
                     val kids = mutableListOf<PlanNode?>()
                     kids.addAll(args)
+                    routine?.let { kids.add(it) }
                     kids.filterNotNull()
                 }
 
@@ -1239,7 +1269,7 @@ internal data class Rel(
                 }
 
                 internal data class Unresolved(
-                    @JvmField internal val name: String,
+                    @JvmField internal val identifier: Identifier,
                     @JvmField internal val setq: SetQuantifier,
                     @JvmField internal val args: List<Rex>,
                 ) : Call() {

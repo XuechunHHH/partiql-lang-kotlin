@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.spi.errors;
 
 import org.jetbrains.annotations.NotNull;
@@ -204,6 +219,8 @@ public final class PError extends Enum {
                 return "FUNCTION_NOT_FOUND";
             case FUNCTION_TYPE_MISMATCH:
                 return "FUNCTION_TYPE_MISMATCH";
+            case FUNCTION_AMBIGUOUS:
+                return "FUNCTION_AMBIGUOUS";
             case VAR_REF_NOT_FOUND:
                 return "VAR_REF_NOT_FOUND";
             case VAR_REF_AMBIGUOUS:
@@ -685,4 +702,17 @@ public final class PError extends Enum {
      * </p>
      */
     public static final int MAP_DUPLICATE_KEY = 27;
+
+    /**
+     * This is a semantic error where a routine invocation matches multiple catalog bindings or routine kinds.
+     * <br><br>
+     * Potentially available properties:
+     * <ul>
+     * <li><b>FN_ID</b> ({@link Identifier}): The user-specified routine identifier.</li>
+     * <li><b>CANDIDATES</b> ({@link List} of {@link String}): Descriptions of the conflicting candidates.</li>
+     * </ul>
+     * <br>
+     * Example error message: <code>[location]: Function reference [fn_id] is ambiguous: [candidates].</code>
+     */
+    public static final int FUNCTION_AMBIGUOUS = 28;
 }
