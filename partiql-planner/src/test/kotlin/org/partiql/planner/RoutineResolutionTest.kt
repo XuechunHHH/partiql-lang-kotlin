@@ -218,6 +218,101 @@ class RoutineResolutionTest {
     }
 
     @Test
+    fun `selected aggregate type mismatch returns error relation without path fallback`() {
+        val first = TestRoutineCatalog.builder("first")
+            .aggregation(
+                "com.example.provider.first",
+                Name.of("ns", "choose"),
+                aggregate("choose", PType.string()),
+            )
+            .build()
+        val second = TestRoutineCatalog.builder("second")
+            .aggregation(
+                "com.example.provider.second",
+                Name.of("choose"),
+                aggregate("choose", PType.integer()),
+            )
+            .build()
+        val base = session("first", first, second)
+        val collector = PErrorCollector()
+        val rex = plan(
+            "SELECT VALUE choose(v) FROM <<1>> AS v",
+            withPath(base, Namespace.of("first", "ns"), Namespace.of("second")),
+            collector,
+        )
+
+        val problem = collector.warnings.single()
+        assertEquals(PError.FUNCTION_TYPE_MISMATCH, problem.code())
+        assertEquals(
+            listOf(PType.integer()),
+            problem.getListOrNull("ARG_TYPES", PType::class.java),
+        )
+        assertNull(problem.getListOrNull("CANDIDATES", FnOverload::class.java))
+        assertTrue(find<RelAggregate>(rex).isEmpty())
+        assertEquals(1, find<RexError>(rex).size)
+        assertEquals(1, first.functionResolutionCount)
+        assertEquals(1, first.aggregationResolutionCount)
+        assertEquals(0, second.functionResolutionCount)
+        assertEquals(0, second.aggregationResolutionCount)
+    }
+
+    @Test
+    fun `aggregate arity miss reports function not found as expression error`() {
+        val catalog = TestRoutineCatalog.builder("demo")
+            .aggregation(
+                "com.example.provider.total",
+                Name.of("total"),
+                aggregate("total", PType.integer(), PType.integer()),
+            )
+            .build()
+        val collector = PErrorCollector()
+        val rex = plan(
+            "SELECT VALUE demo.total(v) FROM <<1>> AS v",
+            session("demo", catalog),
+            collector,
+        )
+
+        assertEquals(listOf(PError.FUNCTION_NOT_FOUND), collector.errors.map { it.code() })
+        assertTrue(find<RelAggregate>(rex).isEmpty())
+        assertEquals(1, find<RexError>(rex).size)
+        assertEquals(1, catalog.functionResolutionCount)
+        assertEquals(1, catalog.aggregationResolutionCount)
+    }
+
+    @Test
+    fun `aggregate binding ambiguity reports string candidates as expression error`() {
+        val catalog = TestRoutineCatalog.builder("demo")
+            .aggregation(
+                "com.example.provider.first",
+                Name.of("duplicate"),
+                aggregate("duplicate", PType.integer()),
+            )
+            .aggregation(
+                "com.example.provider.second",
+                Name.of("duplicate"),
+                aggregate("duplicate", PType.integer()),
+            )
+            .build()
+        val collector = PErrorCollector()
+        val rex = plan(
+            "SELECT VALUE demo.duplicate(v) FROM <<1>> AS v",
+            session("demo", catalog),
+            collector,
+        )
+
+        val problem = collector.errors.single()
+        assertEquals(PError.FUNCTION_AMBIGUOUS, problem.code())
+        assertEquals(
+            2,
+            problem.getListOrNull("CANDIDATES", String::class.java)?.size,
+        )
+        assertTrue(find<RelAggregate>(rex).isEmpty())
+        assertEquals(1, find<RexError>(rex).size)
+        assertEquals(1, catalog.functionResolutionCount)
+        assertEquals(1, catalog.aggregationResolutionCount)
+    }
+
+    @Test
     fun `catalog ambiguity reports a semantic error without internal error`() {
         val lower = TestRoutineCatalog.builder("demo")
             .function(

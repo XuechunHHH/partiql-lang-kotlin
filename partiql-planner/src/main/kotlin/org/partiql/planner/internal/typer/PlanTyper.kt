@@ -30,6 +30,7 @@ import org.partiql.planner.internal.ir.Statement
 import org.partiql.planner.internal.ir.rel
 import org.partiql.planner.internal.ir.relOpAggregate
 import org.partiql.planner.internal.ir.relOpDistinct
+import org.partiql.planner.internal.ir.relOpErr
 import org.partiql.planner.internal.ir.relOpExclude
 import org.partiql.planner.internal.ir.relOpExcludePath
 import org.partiql.planner.internal.ir.relOpFilter
@@ -81,6 +82,15 @@ import kotlin.math.max
 internal class PlanTyper(private val env: Env, config: Context, private val flags: Set<PlannerFlag>) {
 
     private val _listener = config.errorListener
+
+    private sealed interface AggregateResolution {
+        data class Success(
+            val call: Rel.Op.Aggregate.Call.Resolved,
+            val type: CompilerType,
+        ) : AggregateResolution
+
+        data class Failure(val problem: PError) : AggregateResolution
+    }
 
     /**
      * Rewrite the statement with inferred types and resolved variables
@@ -902,27 +912,35 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
             val typer = RexTyper(typeEnv, Strategy.LOCAL)
 
             // typing of aggregate calls is slightly more complicated because they are not expressions.
-            val calls = node.calls.mapIndexed { i, call ->
+            val type = requireNotNull(ctx)
+            val resolutions = node.calls.mapIndexed { i, call ->
                 when (call) {
-                    is Rel.Op.Aggregate.Call.Resolved -> call to ctx!!.schema[i].type
+                    is Rel.Op.Aggregate.Call.Resolved -> AggregateResolution.Success(call, type.schema[i].type)
                     is Rel.Op.Aggregate.Call.Unresolved -> typer.resolveAgg(call)
                 }
             }
+            val failures = resolutions.filterIsInstance<AggregateResolution.Failure>()
+            if (failures.isNotEmpty()) {
+                failures.forEach { _listener.report(it.problem) }
+                return rel(type, relOpErr("Aggregate routine resolution failed"))
+            }
+
+            val calls = resolutions.filterIsInstance<AggregateResolution.Success>()
             val groups = node.groups.map { typer.visitRex(it, null) }
             // Compute schema using order (calls...groups...)
             val schema = mutableListOf<CompilerType>()
-            schema += calls.map { it.second }
+            schema += calls.map { it.type }
             schema += groups.map { it.type }
 
             // rewrite with typed calls and groups
-            val type = ctx!!.copyWithSchema(schema)
+            val resolvedType = type.copyWithSchema(schema)
             val op = relOpAggregate(
                 input = input,
                 strategy = node.strategy,
-                calls = calls.map { it.first },
+                calls = calls.map { it.call },
                 groups = groups,
             )
-            return rel(type, op)
+            return rel(resolvedType, op)
         }
     }
 
@@ -1683,27 +1701,43 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
          *     to each row of T and eliminating null values <--- all NULL values are eliminated as inputs
          */
 
-        fun resolveAgg(node: Rel.Op.Aggregate.Call.Unresolved): Pair<Rel.Op.Aggregate.Call, CompilerType> {
+        fun resolveAgg(node: Rel.Op.Aggregate.Call.Unresolved): AggregateResolution {
             // Type the arguments
             val typedArgs = node.args.map { visitRex(it, null) }
             val shape = RoutineCallShape.from(node.identifier, typedArgs.size)
             val selection = env.selectRoutine(node.identifier, shape)
-            val args = when {
-                selection is RoutineSelection.Aggregate && shape.aggregateArity != typedArgs.size ->
-                    listOf(rex(CompilerType(PType.integer()), Rex.Op.Lit(Datum.integer(1))))
-                else -> typedArgs
-            }
-            val argsResolved = Rel.Op.Aggregate.Call.Unresolved(node.identifier, node.setq, args)
+            val argTypes = typedArgs.map { it.type }
+            return when (selection) {
+                RoutineSelection.NotFound,
+                is RoutineSelection.Scalar,
+                -> AggregateResolution.Failure(
+                    PErrors.functionNotFound(null, node.identifier, argTypes),
+                )
 
-            // Resolve the function
-            if (selection !is RoutineSelection.Aggregate) {
-                return argsResolved to CompilerType(PType.dynamic())
+                is RoutineSelection.Ambiguous -> AggregateResolution.Failure(
+                    PErrors.functionAmbiguous(null, node.identifier, selection.candidates),
+                )
+
+                is RoutineSelection.Aggregate -> {
+                    val args = when {
+                        shape.aggregateArity != typedArgs.size ->
+                            listOf(rex(CompilerType(PType.integer()), Rex.Op.Lit(Datum.integer(1))))
+                        else -> typedArgs
+                    }
+                    val call = env.resolveAgg(selection, node.setq, args)
+                        ?: return AggregateResolution.Failure(
+                            PErrors.functionTypeMismatch(
+                                null,
+                                node.identifier,
+                                args.map { it.type },
+                                null,
+                            ),
+                        )
+                    // TODO pass argument types to compute the return type.
+                    val returnType = call.agg.signature.signature.returns
+                    AggregateResolution.Success(call, CompilerType(returnType))
+                }
             }
-            val call = env.resolveAgg(selection, node.setq, args)
-                ?: return argsResolved to CompilerType(PType.dynamic())
-            // TODO pass argument types to compute the return type.
-            val returnType = call.agg.signature.signature.returns
-            return call to CompilerType(returnType)
         }
     }
 
