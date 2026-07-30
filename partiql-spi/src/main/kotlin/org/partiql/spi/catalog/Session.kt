@@ -65,6 +65,7 @@ public interface Session {
         private var catalogs: Catalogs.Builder = Catalogs.builder()
         private var catalogNames: MutableList<String> = mutableListOf()
         private var namespace: Namespace = Namespace.empty()
+        private var path: Path? = null
         private var properties: MutableMap<String, String> = mutableMapOf()
 
         public fun identity(identity: String): Builder {
@@ -89,6 +90,18 @@ public interface Session {
 
         public fun namespace(levels: List<String>): Builder {
             this.namespace = Namespace.of(levels)
+            return this
+        }
+
+        /**
+         * Sets the ordered path used to resolve unqualified routines.
+         *
+         * Each entry contains a catalog name followed by zero or more namespace levels. This replaces the default
+         * current catalog and namespace entry. The configured system catalog is always included once as the final
+         * entry. Qualified routine calls do not use this path.
+         */
+        public fun path(vararg namespaces: Namespace): Builder {
+            this.path = Path.of(*namespaces)
             return this
         }
 
@@ -126,11 +139,16 @@ public interface Session {
 
             private val _catalogs: Catalogs
             private val systemCatalogNamespace: Namespace = Namespace.of(system.getName())
+            private val _path: Path
 
             init {
                 require(catalog != null) { "Session catalog must be set" }
                 catalogs.add(system)
                 _catalogs = catalogs.build()
+                val defaultPath = listOf(Namespace.of(catalog!!, *namespace.getLevels()))
+                val hostPath = path?.toList() ?: defaultPath
+                val entries = hostPath.filterNot { it == systemCatalogNamespace } + listOf(systemCatalogNamespace)
+                _path = Path.of(*entries.toTypedArray())
             }
 
             override fun getIdentity(): String = identity
@@ -138,10 +156,7 @@ public interface Session {
             override fun getCatalogs(): Catalogs = _catalogs
             override fun getNamespace(): Namespace = namespace
 
-            override fun getPath(): Path {
-                val currentNamespace = Namespace.of(getCatalog(), *getNamespace().getLevels())
-                return Path.of(currentNamespace, systemCatalogNamespace)
-            }
+            override fun getPath(): Path = _path
 
             override fun getProperties(): Map<String, String> {
                 return properties

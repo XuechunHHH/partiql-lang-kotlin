@@ -69,6 +69,27 @@ class RoutineResolutionTest {
     }
 
     @Test
+    fun `session builder path drives unqualified routine lookup`() {
+        val providerId = "com.example.provider.pow"
+        val catalog = TestRoutineCatalog.builder("andes")
+            .function(
+                providerId,
+                Name.of("math", "pow"),
+                scalar("pow", PType.integer(), PType.integer()),
+            )
+            .build()
+        val session = Session.builder()
+            .catalog("andes")
+            .catalogs(catalog)
+            .path(Namespace.of("andes", "math"))
+            .build()
+
+        val call = assertIs<RexCall>(plan("pow(1, 2)", session))
+
+        assertRoutine(call.routineRef, providerId, "andes", Name.of("math", "pow"))
+    }
+
+    @Test
     fun `qualified static calls carry exact catalog local identity`() {
         val rootId = "com.example.provider.rootRoutine"
         val deepId = "com.example.provider.deepRoutine"
