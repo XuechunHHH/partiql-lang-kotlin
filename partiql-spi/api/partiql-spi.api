@@ -83,6 +83,11 @@ public final class org/partiql/spi/catalog/Catalog$DefaultImpls {
 	public static fun resolveTable (Lorg/partiql/spi/catalog/Catalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Lorg/partiql/spi/catalog/Name;
 }
 
+public final class org/partiql/spi/catalog/CatalogNameAmbiguousException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/util/Collection;)V
+	public final fun getCatalogNames ()Ljava/util/List;
+}
+
 public abstract interface class org/partiql/spi/catalog/Catalogs {
 	public static final field Companion Lorg/partiql/spi/catalog/Catalogs$Companion;
 	public static fun builder ()Lorg/partiql/spi/catalog/Catalogs$Builder;
@@ -240,6 +245,7 @@ public final class org/partiql/spi/catalog/Path : java/lang/Iterable, kotlin/jvm
 	public final fun isEmpty ()Z
 	public fun iterator ()Ljava/util/Iterator;
 	public static final fun of ([Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Path;
+	public final fun promote (Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Path;
 	public fun spliterator ()Ljava/util/Spliterator;
 	public fun toString ()Ljava/lang/String;
 }
@@ -303,6 +309,12 @@ public final class org/partiql/spi/catalog/RoutineMountValidationReason : java/l
 	public static fun values ()[Lorg/partiql/spi/catalog/RoutineMountValidationReason;
 }
 
+public final class org/partiql/spi/catalog/RoutinePaths {
+	public static final field INSTANCE Lorg/partiql/spi/catalog/RoutinePaths;
+	public static final fun fromInventory (Lorg/partiql/spi/catalog/RoutineCatalog;)Lorg/partiql/spi/catalog/Path;
+	public static final fun fromInventory (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Catalog;)Lorg/partiql/spi/catalog/Path;
+}
+
 public abstract interface class org/partiql/spi/catalog/Session {
 	public static final field Companion Lorg/partiql/spi/catalog/Session$Companion;
 	public static fun builder ()Lorg/partiql/spi/catalog/Session$Builder;
@@ -324,6 +336,8 @@ public final class org/partiql/spi/catalog/Session$Builder {
 	public final fun namespace (Ljava/util/List;)Lorg/partiql/spi/catalog/Session$Builder;
 	public final fun namespace (Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Session$Builder;
 	public final fun namespace ([Ljava/lang/String;)Lorg/partiql/spi/catalog/Session$Builder;
+	public final fun path (Lorg/partiql/spi/catalog/Path;)Lorg/partiql/spi/catalog/Session$Builder;
+	public final fun path ([Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Session$Builder;
 	public final fun property (Ljava/lang/String;Ljava/lang/String;)Lorg/partiql/spi/catalog/Session$Builder;
 	public final fun system (Lorg/partiql/spi/catalog/Catalog;)Lorg/partiql/spi/catalog/Session$Builder;
 }
