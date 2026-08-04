@@ -230,6 +230,31 @@ public final class org/partiql/spi/catalog/Path$Companion {
 	public final fun of ([Lorg/partiql/spi/catalog/Namespace;)Lorg/partiql/spi/catalog/Path;
 }
 
+public final class org/partiql/spi/catalog/RoutineBinding {
+	public fun <init> (Lorg/partiql/spi/catalog/Name;Ljava/util/Collection;)V
+	public final fun getCanonicalName ()Lorg/partiql/spi/catalog/Name;
+	public final fun getOverloads ()Ljava/util/List;
+}
+
+public abstract interface class org/partiql/spi/catalog/RoutineCatalog : org/partiql/spi/catalog/Catalog {
+	public abstract fun getRoutineInventory ()Lorg/partiql/spi/catalog/RoutineInventory;
+	public abstract fun resolveAggregations (Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Ljava/util/Collection;
+	public abstract fun resolveFunctions (Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Ljava/util/Collection;
+}
+
+public final class org/partiql/spi/catalog/RoutineCatalog$DefaultImpls {
+	public static fun getAggregations (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Ljava/lang/String;)Ljava/util/Collection;
+	public static fun getFunctions (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Ljava/lang/String;)Ljava/util/Collection;
+	public static fun getTable (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Name;)Lorg/partiql/spi/catalog/Table;
+	public static fun resolveTable (Lorg/partiql/spi/catalog/RoutineCatalog;Lorg/partiql/spi/catalog/Session;Lorg/partiql/spi/catalog/Identifier;)Lorg/partiql/spi/catalog/Name;
+}
+
+public final class org/partiql/spi/catalog/RoutineInventory {
+	public fun <init> (Ljava/util/Collection;Ljava/util/Collection;)V
+	public final fun getAggregations ()Ljava/util/List;
+	public final fun getFunctions ()Ljava/util/List;
+}
+
 public abstract interface class org/partiql/spi/catalog/Session {
 	public static final field Companion Lorg/partiql/spi/catalog/Session$Companion;
 	public static fun builder ()Lorg/partiql/spi/catalog/Session$Builder;

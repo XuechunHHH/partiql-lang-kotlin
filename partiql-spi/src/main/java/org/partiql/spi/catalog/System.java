@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.spi.catalog;
 
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +33,7 @@ import java.util.Collection;
  * </p>
  * @see Session.Builder
  */
-final class System implements Catalog {
+final class System implements RoutineCatalog {
 
     @NotNull
     private static final String NAME = "$system";
@@ -56,5 +71,29 @@ final class System implements Catalog {
     @Override
     public Collection<AggOverload> getAggregations(@NotNull Session session, @NotNull String name) {
         return Builtins.INSTANCE.getAggregations(name);
+    }
+
+    @NotNull
+    @Override
+    public Collection<RoutineBinding<FnOverload>> resolveFunctions(
+            @NotNull Session session,
+            @NotNull Identifier identifier
+    ) {
+        return Builtins.INSTANCE.resolveFunctions(identifier);
+    }
+
+    @NotNull
+    @Override
+    public Collection<RoutineBinding<AggOverload>> resolveAggregations(
+            @NotNull Session session,
+            @NotNull Identifier identifier
+    ) {
+        return Builtins.INSTANCE.resolveAggregations(identifier);
+    }
+
+    @NotNull
+    @Override
+    public RoutineInventory getRoutineInventory() {
+        return Builtins.INSTANCE.getRoutineInventory();
     }
 }
