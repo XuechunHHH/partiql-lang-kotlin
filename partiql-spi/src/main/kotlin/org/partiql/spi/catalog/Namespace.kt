@@ -10,12 +10,12 @@ import java.util.function.Consumer
  *  - Iceberg — https://github.com/apache/iceberg/blob/main/api/src/main/java/org/apache/iceberg/catalog/Namespace.java
  *  - Calcite — https://github.com/apache/calcite/blob/main/core/src/main/java/org/apache/calcite/schema/Schema.java
  */
-public class Namespace private constructor(
-    private val levels: Array<String>,
-) : Iterable<String> {
+public class Namespace private constructor(levels: Array<String>) : Iterable<String> {
+
+    private val levels: Array<String> = levels.copyOf()
 
     public fun getLevels(): Array<String> {
-        return levels
+        return levels.copyOf()
     }
 
     public fun getLength(): Int {

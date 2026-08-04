@@ -3,6 +3,8 @@ package org.partiql.spi.function;
 import org.jetbrains.annotations.NotNull;
 import org.partiql.spi.types.PType;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -29,7 +31,7 @@ public final class RoutineOverloadSignature {
      */
     public RoutineOverloadSignature(@NotNull String name, @NotNull List<PType> parameterTypes) {
         this.name = name;
-        this.paramTypes = parameterTypes;
+        this.paramTypes = Collections.unmodifiableList(new ArrayList<>(parameterTypes));
     }
 
     /**
