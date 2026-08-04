@@ -16,10 +16,13 @@
 
 package org.partiql.planner.internal.typer
 
+import org.partiql.planner.internal.AggregateRoutineResolution
 import org.partiql.planner.internal.CoercionFamily
 import org.partiql.planner.internal.Env
 import org.partiql.planner.internal.PErrors
 import org.partiql.planner.internal.PlannerFlag
+import org.partiql.planner.internal.RoutineCallShape
+import org.partiql.planner.internal.ScalarRoutineResolution
 import org.partiql.planner.internal.exclude.ExcludeRepr
 import org.partiql.planner.internal.ir.PlanNode
 import org.partiql.planner.internal.ir.Rel
@@ -28,6 +31,7 @@ import org.partiql.planner.internal.ir.Statement
 import org.partiql.planner.internal.ir.rel
 import org.partiql.planner.internal.ir.relOpAggregate
 import org.partiql.planner.internal.ir.relOpDistinct
+import org.partiql.planner.internal.ir.relOpErr
 import org.partiql.planner.internal.ir.relOpExclude
 import org.partiql.planner.internal.ir.relOpExcludePath
 import org.partiql.planner.internal.ir.relOpFilter
@@ -79,6 +83,15 @@ import kotlin.math.max
 internal class PlanTyper(private val env: Env, config: Context, private val flags: Set<PlannerFlag>) {
 
     private val _listener = config.errorListener
+
+    private sealed interface TypedAggregateResolution {
+        data class Success(
+            val call: Rel.Op.Aggregate.Call.Resolved,
+            val type: CompilerType,
+        ) : TypedAggregateResolution
+
+        data class Failure(val problem: PError) : TypedAggregateResolution
+    }
 
     /**
      * Rewrite the statement with inferred types and resolved variables
@@ -900,27 +913,36 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
             val typer = RexTyper(typeEnv, Strategy.LOCAL)
 
             // typing of aggregate calls is slightly more complicated because they are not expressions.
-            val calls = node.calls.mapIndexed { i, call ->
+            val type = requireNotNull(ctx)
+            val resolutions = node.calls.mapIndexed { i, call ->
                 when (call) {
-                    is Rel.Op.Aggregate.Call.Resolved -> call to ctx!!.schema[i].type
+                    is Rel.Op.Aggregate.Call.Resolved ->
+                        TypedAggregateResolution.Success(call, type.schema[i].type)
                     is Rel.Op.Aggregate.Call.Unresolved -> typer.resolveAgg(call)
                 }
             }
+            val failures = resolutions.filterIsInstance<TypedAggregateResolution.Failure>()
+            if (failures.isNotEmpty()) {
+                failures.forEach { _listener.report(it.problem) }
+                return rel(type, relOpErr("Aggregate routine resolution failed"))
+            }
+
+            val calls = resolutions.filterIsInstance<TypedAggregateResolution.Success>()
             val groups = node.groups.map { typer.visitRex(it, null) }
             // Compute schema using order (calls...groups...)
             val schema = mutableListOf<CompilerType>()
-            schema += calls.map { it.second }
+            schema += calls.map { it.type }
             schema += groups.map { it.type }
 
             // rewrite with typed calls and groups
-            val type = ctx!!.copyWithSchema(schema)
+            val resolvedType = type.copyWithSchema(schema)
             val op = relOpAggregate(
                 input = input,
                 strategy = node.strategy,
-                calls = calls.map { it.first },
+                calls = calls.map { it.call },
                 groups = groups,
             )
-            return rel(type, op)
+            return rel(resolvedType, op)
         }
     }
 
@@ -1142,19 +1164,22 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
         override fun visitRexOpCallUnresolved(node: Rex.Op.Call.Unresolved, ctx: CompilerType?): Rex {
             // Type the arguments
             val args = node.args.map { visitRex(it, null) }
-            // Attempt to resolve in the environment
-            val rex = env.resolveFn(node.identifier, args)
-            if (rex == null) {
-                val candidates = env.getCandidates(node.identifier, args)
-                val argTypes = args.map { it.type }
-                val problem = when (candidates.isEmpty()) {
-                    true -> PErrors.functionNotFound(null, node.identifier, argTypes)
-                    false -> PErrors.functionTypeMismatch(null, node.identifier, argTypes, candidates)
-                }
-                return errorRexAndReport(_listener, problem)
+            val argTypes = args.map { it.type }
+            return when (val resolution = env.resolveFn(node.identifier, args)) {
+                is ScalarRoutineResolution.Success -> visitRex(resolution.rex, null)
+                ScalarRoutineResolution.NotFound -> errorRexAndReport(
+                    _listener,
+                    PErrors.functionNotFound(null, node.identifier, argTypes),
+                )
+                is ScalarRoutineResolution.TypeMismatch -> errorRexAndReport(
+                    _listener,
+                    PErrors.functionTypeMismatch(null, node.identifier, argTypes, resolution.candidates),
+                )
+                is ScalarRoutineResolution.Ambiguous -> errorRexAndReport(
+                    _listener,
+                    PErrors.functionAmbiguous(null, node.identifier, resolution.candidates),
+                )
             }
-            // Pass off to Rex.Op.Call.Static or Rex.Op.Call.Dynamic for typing.
-            return visitRex(rex, null)
         }
 
         /**
@@ -1181,11 +1206,11 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
 
             if (argIsAlwaysMissing && instance.signature.isMissingCall) {
                 _listener.report(PErrors.alwaysMissing(null))
-                return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args))
+                return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args, node.routine))
             }
 
             // Infer fn return type
-            return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args))
+            return rex(CompilerType(returnType), Rex.Op.Call.Static(node.fn, args, node.routine))
         }
 
         /**
@@ -1666,16 +1691,31 @@ internal class PlanTyper(private val env: Env, config: Context, private val flag
          *     to each row of T and eliminating null values <--- all NULL values are eliminated as inputs
          */
 
-        fun resolveAgg(node: Rel.Op.Aggregate.Call.Unresolved): Pair<Rel.Op.Aggregate.Call, CompilerType> {
+        fun resolveAgg(node: Rel.Op.Aggregate.Call.Unresolved): TypedAggregateResolution {
             // Type the arguments
-            val args = node.args.map { visitRex(it, null) }
-            val argsResolved = Rel.Op.Aggregate.Call.Unresolved(node.name, node.setq, args)
-
-            // Resolve the function
-            val call = env.resolveAgg(node.name, node.setq, args) ?: return argsResolved to CompilerType(PType.dynamic())
-            // TODO pass argument types to compute the return type.
-            val returnType = call.agg.signature.signature.returns
-            return call to CompilerType(returnType)
+            val typedArgs = node.args.map { visitRex(it, null) }
+            val shape = RoutineCallShape.from(node.identifier, typedArgs.size)
+            val args = when {
+                shape.aggregateArity != typedArgs.size ->
+                    listOf(rex(CompilerType(PType.integer()), Rex.Op.Lit(Datum.integer(1))))
+                else -> typedArgs
+            }
+            val argTypes = typedArgs.map { it.type }
+            return when (val resolution = env.resolveAgg(node.identifier, shape, node.setq, args)) {
+                is AggregateRoutineResolution.Success -> {
+                    val returnType = resolution.call.agg.signature.signature.returns
+                    TypedAggregateResolution.Success(resolution.call, CompilerType(returnType))
+                }
+                AggregateRoutineResolution.NotFound -> TypedAggregateResolution.Failure(
+                    PErrors.functionNotFound(null, node.identifier, argTypes),
+                )
+                AggregateRoutineResolution.TypeMismatch -> TypedAggregateResolution.Failure(
+                    PErrors.functionTypeMismatch(null, node.identifier, argTypes, null),
+                )
+                is AggregateRoutineResolution.Ambiguous -> TypedAggregateResolution.Failure(
+                    PErrors.functionAmbiguous(null, node.identifier, resolution.candidates),
+                )
+            }
         }
     }
 

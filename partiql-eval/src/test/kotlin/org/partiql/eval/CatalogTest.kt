@@ -136,7 +136,7 @@ class CatalogTest {
         assert(result is TestResult.Failure)
         val errs = (result as TestResult.Failure).err
         assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assertEquals(PError.FUNCTION_AMBIGUOUS, errs.errors[0].code())
     }
 
     @Test
@@ -176,7 +176,7 @@ class CatalogTest {
         assert(result is TestResult.Failure)
         val errs = (result as TestResult.Failure).err
         assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assertEquals(PError.FUNCTION_AMBIGUOUS, errs.errors[0].code())
     }
 
     @Test
@@ -188,7 +188,7 @@ class CatalogTest {
         assert(result is TestResult.Failure)
         val errs = (result as TestResult.Failure).err
         assertTrue(errs.errors.isNotEmpty())
-        assertEquals(PError.INTERNAL_ERROR, errs.errors[0].code())
+        assertEquals(PError.FUNCTION_AMBIGUOUS, errs.errors[0].code())
     }
 
     sealed class TestResult {

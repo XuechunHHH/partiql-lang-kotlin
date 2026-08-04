@@ -21,6 +21,7 @@ object ErrorMessageFormatter {
             ErrorCodeString.UNRECOGNIZED_TOKEN -> unrecognizedToken(error)
             ErrorCodeString.FUNCTION_TYPE_MISMATCH -> fnTypeMismatch(error)
             ErrorCodeString.FUNCTION_NOT_FOUND -> fnTypeMismatch(error) // TODO: Add dedicated message for this.
+            ErrorCodeString.FUNCTION_AMBIGUOUS -> fnAmbiguous(error)
             ErrorCodeString.UNDEFINED_CAST -> undefinedCast(error)
             ErrorCodeString.INTERNAL_ERROR -> internalError(error) // TODO: Make the verbosity a variable
             ErrorCodeString.PATH_KEY_NEVER_SUCCEEDS -> pathNeverSucceeds("key")
@@ -259,6 +260,20 @@ object ErrorMessageFormatter {
         return buildString {
             append("Undefined function$fnStr.")
         }
+    }
+
+    /**
+     * @see PError.FUNCTION_AMBIGUOUS
+     */
+    private fun fnAmbiguous(error: PError): String {
+        val functionName = error.getOrNull("FN_ID", Identifier::class.java)
+        val candidates = error.getListOrNull("CANDIDATES", String::class.java)
+        val fnNameStr = prepare(unHideFunctionName(functionName), " ", "")
+        val candidateStr = when {
+            candidates.isNullOrEmpty() -> ""
+            else -> candidates.joinToString(", ", " Candidates: ", ".")
+        }
+        return "Ambiguous function$fnNameStr.$candidateStr"
     }
 
     private fun unHideFunctionName(functionName: Identifier?): String {

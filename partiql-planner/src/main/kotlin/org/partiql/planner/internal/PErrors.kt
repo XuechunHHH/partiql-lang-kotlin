@@ -100,6 +100,29 @@ internal object PErrors {
 
     /**
      * @param location see [PError.location]
+     * @param fnId see [PError.FUNCTION_AMBIGUOUS]
+     * @param candidates see [PError.FUNCTION_AMBIGUOUS]
+     * @return an error representing [PError.FUNCTION_AMBIGUOUS]
+     */
+    internal fun functionAmbiguous(
+        location: SourceLocation?,
+        fnId: Identifier?,
+        candidates: List<String>?,
+    ): PError {
+        return PError(
+            PError.FUNCTION_AMBIGUOUS,
+            Severity.ERROR(),
+            PErrorKind.SEMANTIC(),
+            location,
+            mapOf(
+                "FN_ID" to fnId,
+                "CANDIDATES" to candidates,
+            ),
+        )
+    }
+
+    /**
+     * @param location see [PError.location]
      * @return an error representing [PError.PATH_INDEX_NEVER_SUCCEEDS]
      */
     internal fun pathIndexNeverSucceeds(

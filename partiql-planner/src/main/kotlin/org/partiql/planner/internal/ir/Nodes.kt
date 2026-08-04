@@ -69,6 +69,7 @@ import org.partiql.planner.internal.ir.builder.RexOpVarUnresolvedBuilder
 import org.partiql.planner.internal.ir.builder.StatementQueryBuilder
 import org.partiql.planner.internal.ir.visitor.PlanVisitor
 import org.partiql.planner.internal.typer.CompilerType
+import org.partiql.plan.RoutineRef
 import org.partiql.spi.catalog.Identifier
 import org.partiql.spi.catalog.Name
 import org.partiql.spi.catalog.Table
@@ -455,6 +456,7 @@ internal data class Rex(
             internal data class Static(
                 @JvmField internal val fn: Fn,
                 @JvmField internal val args: List<Rex>,
+                @JvmField internal val routine: RoutineRef?,
             ) : Call() {
                 public override val children: List<PlanNode> by lazy {
                     val kids = mutableListOf<PlanNode?>()
@@ -474,6 +476,7 @@ internal data class Rex(
             internal data class Dynamic(
                 @JvmField internal val args: List<Rex>,
                 @JvmField internal val candidates: List<Candidate>,
+                @JvmField internal val routine: RoutineRef?,
             ) : Call() {
                 public override val children: List<PlanNode> by lazy {
                     val kids = mutableListOf<PlanNode?>()
@@ -1239,7 +1242,7 @@ internal data class Rel(
                 }
 
                 internal data class Unresolved(
-                    @JvmField internal val name: String,
+                    @JvmField internal val identifier: Identifier,
                     @JvmField internal val setq: SetQuantifier,
                     @JvmField internal val args: List<Rex>,
                 ) : Call() {
@@ -1263,6 +1266,7 @@ internal data class Rel(
                     @JvmField internal val agg: Ref.Agg,
                     @JvmField internal val setq: SetQuantifier,
                     @JvmField internal val args: List<Rex>,
+                    @JvmField internal val routine: RoutineRef?,
                 ) : Call() {
                     public override val children: List<PlanNode> by lazy {
                         val kids = mutableListOf<PlanNode?>()
