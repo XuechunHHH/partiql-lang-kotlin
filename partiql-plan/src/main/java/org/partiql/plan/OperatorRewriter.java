@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.plan;
 
 import org.jetbrains.annotations.NotNull;
@@ -412,7 +427,10 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
         List<Rex> args_new = visitAll(args, ctx, this::visitRex);
         // rewrite call
         if (args != args_new) {
-            RexCall newOp = operators.call(rex.getFunction(), args_new);
+            RoutineRef routineRef = rex.getRoutineRef();
+            RexCall newOp = routineRef == null
+                    ? operators.call(rex.getFunction(), args_new)
+                    : operators.call(rex.getFunction(), args_new, routineRef);
             newOp.setType(rex.getType());
             return newOp;
         }
@@ -489,7 +507,10 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
         List<Rex> args_new = visitAll(args, ctx, this::visitRex);
         // rewrite dispatch
         if (args != args_new) {
-            RexDispatch newOp = operators.dispatch(rex.getName(), rex.getFunctions(), args_new);
+            RoutineRef routineRef = rex.getRoutineRef();
+            RexDispatch newOp = routineRef == null
+                    ? operators.dispatch(rex.getName(), rex.getFunctions(), args_new)
+                    : operators.dispatch(rex.getName(), rex.getFunctions(), args_new, routineRef);
             newOp.setType(rex.getType());
             return newOp;
         }

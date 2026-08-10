@@ -28,6 +28,8 @@ import org.partiql.ast.SelectValue
 import org.partiql.ast.expr.Expr
 import org.partiql.ast.expr.ExprCall
 import org.partiql.planner.internal.Env
+import org.partiql.planner.internal.RoutineCallShape
+import org.partiql.planner.internal.RoutineClassification
 
 /**
  * Handles aggregation transformation for both SELECT, HAVING, and ORDER BY clauses.
@@ -80,20 +82,15 @@ internal object AggregationTransform : AstRewriter<AggregationTransform.Context>
         }
 
     fun isAggregateCall(node: ExprCall, ctx: Context): Boolean {
-        val fnName = node.function.identifier.text.lowercase()
-        val isScalar = ctx.env.hasFn(fnName)
-        val isAggregate = if (fnName == "count" && node.args.isEmpty()) {
-            // Yet another special case for `COUNT(*)`
-            ctx.env.getAggCandidates(fnName, node.args.size + 1).isNotEmpty()
-        } else {
-            ctx.env.getAggCandidates(fnName, node.args.size).isNotEmpty()
+        val identifier = AstToPlan.convert(node.function)
+        val shape = RoutineCallShape.from(identifier, node.args.size)
+        return when (val classification = ctx.env.classifyRoutine(identifier, shape)) {
+            RoutineClassification.Aggregate -> true
+            is RoutineClassification.Ambiguous -> classification.aggregateOnly
+            RoutineClassification.NotFound,
+            RoutineClassification.Scalar,
+            -> false
         }
-
-        if (isAggregate && isScalar) {
-            throw IllegalStateException("Name registered as both a scalar and aggregate call: `$fnName`")
-        }
-
-        return isAggregate
     }
 
     fun syntheticAgg(i: Int) = "\$agg_$i"

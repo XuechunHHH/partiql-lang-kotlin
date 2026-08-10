@@ -1,5 +1,21 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.spi.catalog
 
+import java.util.Collections
 import java.util.Spliterator
 import java.util.function.Consumer
 
@@ -8,8 +24,10 @@ import java.util.function.Consumer
  * element in the namespace.
  */
 public class Path private constructor(
-    private val namespaces: List<Namespace>,
+    namespaces: List<Namespace>,
 ) : Iterable<Namespace> {
+
+    private val namespaces: List<Namespace> = Collections.unmodifiableList(ArrayList(namespaces))
 
     public companion object {
 
@@ -27,6 +45,25 @@ public class Path private constructor(
 
     public operator fun get(index: Int): Namespace {
         return namespaces[index]
+    }
+
+    /**
+     * Returns a path with the first exact occurrence of [entry] moved to the front.
+     *
+     * The relative order of every other entry, including later duplicates, is preserved. This path is unchanged.
+     *
+     * @throws IllegalArgumentException when [entry] is absent
+     */
+    public fun promote(entry: Namespace): Path {
+        val index = namespaces.indexOf(entry)
+        require(index >= 0) { "Cannot promote a path entry that is not present: $entry" }
+        if (index == 0) {
+            return this
+        }
+        val promoted = namespaces.toMutableList()
+        promoted.removeAt(index)
+        promoted.add(0, entry)
+        return Path(promoted)
     }
 
     override fun forEach(action: Consumer<in Namespace>?) {

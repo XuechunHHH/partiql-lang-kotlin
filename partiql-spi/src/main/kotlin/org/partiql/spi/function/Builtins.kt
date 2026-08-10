@@ -1,6 +1,23 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package org.partiql.spi.function
 
 /* ktlint-disable no-wildcard-imports */
+import org.partiql.spi.catalog.Identifier
+import org.partiql.spi.catalog.RoutineBinding
 import org.partiql.spi.function.builtins.*
 
 /**
@@ -17,6 +34,12 @@ internal object Builtins {
     fun getFunctions(name: String): Collection<FnOverload> = functions[name] ?: emptyList()
 
     fun getAggregations(name: String): Collection<AggOverload> = aggregations[name] ?: emptyList()
+
+    fun resolveFunctions(identifier: Identifier): Collection<RoutineBinding<FnOverload>> =
+        provider.getFunctions(identifier)
+
+    fun resolveAggregations(identifier: Identifier): Collection<RoutineBinding<AggOverload>> =
+        provider.getAggregations(identifier)
 
     private val functions = listOf<FnOverload>(
         Fn_ABS__INT8__INT8,
@@ -301,4 +324,9 @@ internal object Builtins {
         Agg_SUM__ANY__ANY,
         Agg_GROUP_AS__ANY__ANY
     ).groupBy { it.signature.name }
+
+    private val provider = MemRoutineProvider.builder().apply {
+        functions.values.flatten().forEach { register(it) }
+        aggregations.values.flatten().forEach { register(it) }
+    }.build()
 }
