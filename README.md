@@ -80,6 +80,7 @@ $ tree -d -L 2 -I build -I src`
 ├── partiql-cli                 CLI & Shell application
 ├── partiql-coverage            Code coverage library
 ├── partiql-eval                PartiQL compiler
+├── partiql-function-extensions Optional reusable function extensions
 ├── partiql-lang                Top-level project depending on all subprojects
 ├── partiql-parser              PartiQL parser
 ├── partiql-plan                PartiQL plan data structures and utilities
