@@ -430,7 +430,7 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
             RoutineRef routineRef = rex.getRoutineRef();
             RexCall newOp = routineRef == null
                     ? operators.call(rex.getFunction(), args_new)
-                    : RexCall.create(rex.getFunction(), args_new, routineRef);
+                    : operators.call(rex.getFunction(), args_new, routineRef);
             newOp.setType(rex.getType());
             return newOp;
         }
@@ -510,7 +510,7 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
             RoutineRef routineRef = rex.getRoutineRef();
             RexDispatch newOp = routineRef == null
                     ? operators.dispatch(rex.getName(), rex.getFunctions(), args_new)
-                    : RexDispatch.create(rex.getName(), rex.getFunctions(), args_new, routineRef);
+                    : operators.dispatch(rex.getName(), rex.getFunctions(), args_new, routineRef);
             newOp.setType(rex.getType());
             return newOp;
         }

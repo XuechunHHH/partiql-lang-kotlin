@@ -308,11 +308,13 @@ public abstract interface class org/partiql/plan/Operators {
 	public abstract fun array (Ljava/util/List;)Lorg/partiql/plan/rex/RexArray;
 	public abstract fun bag (Ljava/util/Collection;)Lorg/partiql/plan/rex/RexBag;
 	public abstract fun call (Lorg/partiql/spi/function/Fn;Ljava/util/List;)Lorg/partiql/plan/rex/RexCall;
+	public abstract fun call (Lorg/partiql/spi/function/Fn;Ljava/util/List;Lorg/partiql/plan/RoutineRef;)Lorg/partiql/plan/rex/RexCall;
 	public abstract fun caseWhen (Lorg/partiql/plan/rex/Rex;Ljava/util/List;Lorg/partiql/plan/rex/Rex;)Lorg/partiql/plan/rex/RexCase;
 	public abstract fun cast (Lorg/partiql/plan/rex/Rex;Lorg/partiql/spi/types/PType;)Lorg/partiql/plan/rex/RexCast;
 	public abstract fun coalesce (Ljava/util/List;)Lorg/partiql/plan/rex/RexCoalesce;
 	public abstract fun correlate (Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/JoinType;)Lorg/partiql/plan/rel/RelCorrelate;
 	public abstract fun dispatch (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lorg/partiql/plan/rex/RexDispatch;
+	public abstract fun dispatch (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lorg/partiql/plan/RoutineRef;)Lorg/partiql/plan/rex/RexDispatch;
 	public abstract fun distinct (Lorg/partiql/plan/rel/Rel;)Lorg/partiql/plan/rel/RelDistinct;
 	public abstract fun error (Lorg/partiql/spi/types/PType;)Lorg/partiql/plan/rex/RexError;
 	public abstract fun except (Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/rel/Rel;Z)Lorg/partiql/plan/rel/RelExcept;
@@ -357,11 +359,13 @@ public final class org/partiql/plan/Operators$DefaultImpls {
 	public static fun array (Lorg/partiql/plan/Operators;Ljava/util/List;)Lorg/partiql/plan/rex/RexArray;
 	public static fun bag (Lorg/partiql/plan/Operators;Ljava/util/Collection;)Lorg/partiql/plan/rex/RexBag;
 	public static fun call (Lorg/partiql/plan/Operators;Lorg/partiql/spi/function/Fn;Ljava/util/List;)Lorg/partiql/plan/rex/RexCall;
+	public static fun call (Lorg/partiql/plan/Operators;Lorg/partiql/spi/function/Fn;Ljava/util/List;Lorg/partiql/plan/RoutineRef;)Lorg/partiql/plan/rex/RexCall;
 	public static fun caseWhen (Lorg/partiql/plan/Operators;Lorg/partiql/plan/rex/Rex;Ljava/util/List;Lorg/partiql/plan/rex/Rex;)Lorg/partiql/plan/rex/RexCase;
 	public static fun cast (Lorg/partiql/plan/Operators;Lorg/partiql/plan/rex/Rex;Lorg/partiql/spi/types/PType;)Lorg/partiql/plan/rex/RexCast;
 	public static fun coalesce (Lorg/partiql/plan/Operators;Ljava/util/List;)Lorg/partiql/plan/rex/RexCoalesce;
 	public static fun correlate (Lorg/partiql/plan/Operators;Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/JoinType;)Lorg/partiql/plan/rel/RelCorrelate;
 	public static fun dispatch (Lorg/partiql/plan/Operators;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lorg/partiql/plan/rex/RexDispatch;
+	public static fun dispatch (Lorg/partiql/plan/Operators;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lorg/partiql/plan/RoutineRef;)Lorg/partiql/plan/rex/RexDispatch;
 	public static fun distinct (Lorg/partiql/plan/Operators;Lorg/partiql/plan/rel/Rel;)Lorg/partiql/plan/rel/RelDistinct;
 	public static fun error (Lorg/partiql/plan/Operators;Lorg/partiql/spi/types/PType;)Lorg/partiql/plan/rex/RexError;
 	public static fun except (Lorg/partiql/plan/Operators;Lorg/partiql/plan/rel/Rel;Lorg/partiql/plan/rel/Rel;Z)Lorg/partiql/plan/rel/RelExcept;

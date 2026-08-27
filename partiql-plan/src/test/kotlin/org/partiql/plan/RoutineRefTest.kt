@@ -143,6 +143,22 @@ class RoutineRefTest {
     }
 
     @Test
+    fun identityAwareRewriteUsesCustomFactory() {
+        val operators = TrackingOperators()
+        val rewriter = LiteralReplacingRewriter(operators)
+        val call = RexCall.create(function, listOf(literal), routineRef)
+        val dispatch = RexDispatch.create("routine", listOf(overload), listOf(literal), routineRef)
+
+        val rewrittenCall = rewriter.visitRex(call, Unit) as RexCall
+        val rewrittenDispatch = rewriter.visitRex(dispatch, Unit) as RexDispatch
+
+        assertEquals(1, operators.callCount)
+        assertEquals(1, operators.dispatchCount)
+        assertSame(routineRef, rewrittenCall.routineRef)
+        assertSame(routineRef, rewrittenDispatch.routineRef)
+    }
+
+    @Test
     fun measureCopyAndRewritePreserveIdentity() {
         val original = RelAggregate.measure(aggregation, listOf(literal), false, routineRef)
 
@@ -154,7 +170,32 @@ class RoutineRefTest {
         assertSame(routineRef, rewritten.routineRef)
     }
 
-    private class LiteralReplacingRewriter : OperatorRewriter<Unit>() {
+    private class LiteralReplacingRewriter(
+        operators: Operators = Operators.STANDARD,
+    ) : OperatorRewriter<Unit>(operators) {
         override fun visitLit(rex: RexLit, ctx: Unit): Operator = RexLit.create(rex.datum)
+    }
+
+    private class TrackingOperators : Operators {
+        var callCount: Int = 0
+            private set
+
+        var dispatchCount: Int = 0
+            private set
+
+        override fun call(function: Fn, args: List<Rex>, routineRef: RoutineRef): RexCall {
+            callCount++
+            return RexCall.create(function, args, routineRef)
+        }
+
+        override fun dispatch(
+            name: String,
+            functions: List<FnOverload>,
+            args: List<Rex>,
+            routineRef: RoutineRef,
+        ): RexDispatch {
+            dispatchCount++
+            return RexDispatch.create(name, functions, args, routineRef)
+        }
     }
 }
