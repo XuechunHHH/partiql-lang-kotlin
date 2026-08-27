@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased](https://TODO.com) - YYYY-MM-DD
 
 ### Added
-- Added `RoutineProvider`, `MemRoutineProvider`, `RoutineBinding`, and `RoutineCatalog` APIs for explicit scalar and aggregate routine registration with exact catalog-local lookup.
 
 ### Changed
 
@@ -27,6 +26,8 @@ Thank you to all who have contributed!
 ## [Unreleased](https://TODO.com) - YYYY-MM-DD
 
 ### Added
+- Added `RoutineProvider`, `MemRoutineProvider`, `RoutineBinding`, and `RoutineCatalog` APIs for explicit scalar and aggregate routine registration with exact catalog-local lookup.
+- Added namespace-aware scalar and aggregate routine resolution with configurable session paths, qualified catalog names, ambiguity diagnostics, and canonical `RoutineRef` plan identity.
 
 ### Changed
 
@@ -40,6 +41,7 @@ Thank you to all who have contributed!
 
 ### Contributors
 Thank you to all who have contributed!
+- @XuechunHHH
 
 ## [1.5.1](https://github.com/partiql/partiql-lang-kotlin/releases/tag/v1.5.1) - 2026-08-18
 

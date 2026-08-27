@@ -34,18 +34,20 @@ internal class SqlPlanner(
      * Then default planner logic.
      */
     override fun plan(statement: Statement, session: Session, ctx: Context): Result {
+        var env: Env? = null
         try {
             // 0. Initialize the planning environment
-            val env = Env(session, ctx.errorListener)
+            val planningEnv = Env(session, ctx.errorListener)
+            env = planningEnv
 
             // 1. Normalize
             val ast = statement.normalize(ctx.errorListener)
 
             // 2. AST to Rel/Rex
-            val root = AstToPlan.apply(ast, env)
+            val root = AstToPlan.apply(ast, planningEnv)
 
             // 3. Resolve variables
-            val typer = PlanTyper(env, ctx, flags)
+            val typer = PlanTyper(planningEnv, ctx, flags)
             val typed = typer.resolve(root)
             val internal = org.partiql.planner.internal.ir.PartiQLPlan(typed)
 
@@ -62,6 +64,9 @@ internal class SqlPlanner(
         } catch (e: PRuntimeException) {
             throw e
         } catch (t: Throwable) {
+            if (env?.shouldPropagateRoutineFailure(t) == true) {
+                throw t
+            }
             return catchAll(ctx, t)
         }
     }

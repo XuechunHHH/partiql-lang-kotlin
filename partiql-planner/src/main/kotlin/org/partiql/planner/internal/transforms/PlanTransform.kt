@@ -13,7 +13,9 @@ import org.partiql.plan.WithListElement
 import org.partiql.plan.rel.RelAggregate
 import org.partiql.plan.rel.RelType
 import org.partiql.plan.rex.Rex
+import org.partiql.plan.rex.RexCall
 import org.partiql.plan.rex.RexCase
+import org.partiql.plan.rex.RexDispatch
 import org.partiql.plan.rex.RexMap
 import org.partiql.plan.rex.RexStruct
 import org.partiql.plan.rex.RexType
@@ -182,13 +184,19 @@ internal class PlanTransform(private val flags: Set<PlannerFlag>, private val us
             val args = node.args.map { visitRex(it, it.type) }
             val fns = node.candidates.map { it.fn.signature }
             val name = node.candidates.first().fn.name.getName()
-            return operators.dispatch(name, fns, args)
+            return when (val routine = node.routine) {
+                null -> operators.dispatch(name, fns, args)
+                else -> RexDispatch.create(name, fns, args, routine)
+            }
         }
 
         override fun visitRexOpCallStatic(node: IRex.Op.Call.Static, ctx: PType): Any {
             val fn = node.fn
             val args = node.args.map { visitRex(it, it.type) }
-            return operators.call(fn, args)
+            return when (val routine = node.routine) {
+                null -> operators.call(fn, args)
+                else -> RexCall.create(fn, args, routine)
+            }
         }
 
         override fun visitRexOpCallUnresolved(node: IRex.Op.Call.Unresolved, ctx: PType): Any {
@@ -312,7 +320,10 @@ internal class PlanTransform(private val flags: Set<PlannerFlag>, private val us
             val agg = node.agg.signature
             val args = node.args.map { visitRex(it, it.type) }
             val isDistinct = node.setq == SetQuantifier.DISTINCT
-            return RelAggregate.measure(agg, args, isDistinct)
+            return when (val routine = node.routine) {
+                null -> RelAggregate.measure(agg, args, isDistinct)
+                else -> RelAggregate.measure(agg, args, isDistinct, routine)
+            }
         }
 
         override fun visitRelOpJoin(node: IRel.Op.Join, ctx: PType): Any {

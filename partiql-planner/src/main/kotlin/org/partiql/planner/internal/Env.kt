@@ -28,6 +28,26 @@ import org.partiql.spi.function.AggOverload
 import org.partiql.spi.function.FnOverload
 import org.partiql.spi.types.PType
 
+internal sealed interface ScalarRoutineResolution {
+    data class Success(val rex: Rex) : ScalarRoutineResolution
+
+    data object NotFound : ScalarRoutineResolution
+
+    data class TypeMismatch(val candidates: List<FnOverload>) : ScalarRoutineResolution
+
+    data class Ambiguous(val candidates: List<String>) : ScalarRoutineResolution
+}
+
+internal sealed interface AggregateRoutineResolution {
+    data class Success(val call: Rel.Op.Aggregate.Call.Resolved) : AggregateRoutineResolution
+
+    data object NotFound : AggregateRoutineResolution
+
+    data object TypeMismatch : AggregateRoutineResolution
+
+    data class Ambiguous(val candidates: List<String>) : AggregateRoutineResolution
+}
+
 /**
  * [Env] is similar to the database type environment from the PartiQL Specification. This includes resolution of
  * database binding values and scoped functions.
@@ -50,33 +70,7 @@ internal class Env(private val session: Session, internal val listener: PErrorLi
      */
     private val default: Catalog = catalogs.getCatalog(session.getCatalog()) ?: error("Default catalog does not exist")
 
-    private inline fun <T> findFirstInCatalog(fn: (Catalog) -> T?): T? {
-        val path = session.getPath()
-        for (namespace in path) {
-            val catalogName = namespace.firstOrNull() ?: continue
-            val catalog = catalogs.getCatalog(catalogName) ?: continue
-            val result = fn(catalog)
-            if (result != null) {
-                return result
-            }
-        }
-        return null
-    }
-
-    fun hasFn(path: String): Boolean {
-        val fns = findFirstInCatalog { catalog -> catalog.getFunctions(session, path.lowercase()).ifEmpty { null } }
-        if (fns == null) {
-            return false
-        } else {
-            return fns.isNotEmpty()
-        }
-    }
-
-    fun resolveFn(identifier: Identifier, args: List<Rex>): Rex? {
-        return findFirstInCatalog { catalog ->
-            resolveFn(identifier, args, catalog)
-        }
-    }
+    private val routines = RoutineResolver(session)
 
     fun resolveWindowFn(name: String, args: List<Rex>, isIgnoreNulls: Boolean = false): Rel.Op.Window.WindowFunction? {
         val sig = WindowFunctionSignatureProvider.get(name, args, isIgnoreNulls) ?: return null
@@ -84,33 +78,126 @@ internal class Env(private val session: Session, internal val listener: PErrorLi
         return relOpWindowWindowFunction(sig.name, args, sig.isIgnoreNulls, paramTypes, sig.returnType.toCType())
     }
 
-    fun getCandidates(identifier: Identifier, args: List<Rex>): List<FnOverload> {
-        return findFirstInCatalog { catalog ->
-            getCandidates(identifier, args.size, catalog)
-        } ?: emptyList()
-    }
+    fun classifyRoutine(identifier: Identifier, shape: RoutineCallShape): RoutineClassification =
+        routines.search(identifier, shape).classification
 
-    fun hasAgg(path: String): Boolean {
-        val aggs = findFirstInCatalog { catalog -> catalog.getAggregations(session, path.lowercase()).ifEmpty { null } }
-        if (aggs == null) {
-            return false
-        } else {
-            return aggs.isNotEmpty()
+    internal fun shouldPropagateRoutineFailure(failure: Throwable): Boolean =
+        routines.shouldPropagate(failure)
+
+    fun resolveFn(identifier: Identifier, args: List<Rex>): ScalarRoutineResolution {
+        val search = routines.search(identifier, RoutineCallShape.from(identifier, args.size))
+        when (val classification = search.classification) {
+            is RoutineClassification.Ambiguous ->
+                return ScalarRoutineResolution.Ambiguous(classification.candidates)
+            RoutineClassification.NotFound,
+            RoutineClassification.Aggregate,
+            -> return ScalarRoutineResolution.NotFound
+            RoutineClassification.Scalar -> Unit
+        }
+
+        var firstCandidates: List<FnOverload>? = null
+        for (location in search.locations) {
+            if (location.scalars.size > 1) {
+                return ScalarRoutineResolution.Ambiguous(
+                    location.scalars.map { it.describe("scalar") }.distinct(),
+                )
+            }
+            val selected = location.scalars.singleOrNull() ?: continue
+            if (selected.overloads.isEmpty()) {
+                continue
+            }
+            if (firstCandidates == null) {
+                firstCandidates = selected.overloads
+            }
+            val resolved = FnResolver.resolve(selected.overloads, args.map { it.type }) ?: continue
+            val rex = when (resolved) {
+                is FnMatch.Dynamic -> {
+                    val candidates = resolved.candidates.map {
+                        rexOpCallDynamicCandidate(
+                            fn = refFn(
+                                catalog = selected.catalog,
+                                name = selected.canonicalName,
+                                signature = it,
+                            ),
+                            coercions = emptyList(),
+                        )
+                    }
+                    Rex(
+                        CompilerType(PType.dynamic()),
+                        Rex.Op.Call.Dynamic(args, candidates, selected.routine),
+                    )
+                }
+                is FnMatch.Static -> {
+                    val coercions = args.mapIndexed { i, arg ->
+                        when (val cast = resolved.mapping[i]) {
+                            null -> arg
+                            else -> Rex(cast.target, Rex.Op.Cast.Resolved(cast, arg))
+                        }
+                    }
+                    Rex(
+                        CompilerType(PType.dynamic()),
+                        Rex.Op.Call.Static(resolved.function, coercions, selected.routine),
+                    )
+                }
+            }
+            return ScalarRoutineResolution.Success(rex)
+        }
+        return when (firstCandidates) {
+            null -> ScalarRoutineResolution.NotFound
+            else -> ScalarRoutineResolution.TypeMismatch(firstCandidates)
         }
     }
 
-    fun resolveAgg(path: String, setQuantifier: SetQuantifier, args: List<Rex>): Rel.Op.Aggregate.Call.Resolved? {
-        return findFirstInCatalog { catalog ->
-            resolveAgg(path, setQuantifier, args, catalog)
+    fun resolveAgg(
+        identifier: Identifier,
+        shape: RoutineCallShape,
+        setQuantifier: SetQuantifier,
+        args: List<Rex>,
+    ): AggregateRoutineResolution {
+        val search = routines.search(identifier, shape)
+        when (val classification = search.classification) {
+            is RoutineClassification.Ambiguous ->
+                return AggregateRoutineResolution.Ambiguous(classification.candidates)
+            RoutineClassification.NotFound,
+            RoutineClassification.Scalar,
+            -> return AggregateRoutineResolution.NotFound
+            RoutineClassification.Aggregate -> Unit
         }
-    }
 
-    fun getAggCandidates(path: String, args: List<Rex>): List<AggOverload> = getAggCandidates(path, args.size)
-
-    fun getAggCandidates(path: String, arity: Int): List<AggOverload> {
-        return findFirstInCatalog { catalog ->
-            getAggCandidates(path, arity, catalog)
-        } ?: emptyList()
+        var candidatesFound = false
+        for (location in search.locations) {
+            if (location.aggregates.size > 1) {
+                return AggregateRoutineResolution.Ambiguous(
+                    location.aggregates.map { it.describe("aggregate") }.distinct(),
+                )
+            }
+            val selected = location.aggregates.singleOrNull() ?: continue
+            if (selected.overloads.isEmpty()) {
+                continue
+            }
+            candidatesFound = true
+            val match = match(selected.overloads, args.map { it.type }) ?: continue
+            val agg = match.first
+            val mapping = match.second
+            val ref = refAgg(selected.catalog, selected.canonicalName, agg)
+            val coercions = args.mapIndexed { i, arg ->
+                when (val cast = mapping[i]) {
+                    null -> arg
+                    else -> rex(cast.target, rexOpCastResolved(cast, arg))
+                }
+            }
+            val call = relOpAggregateCallResolved(
+                agg = ref,
+                setq = setQuantifier,
+                args = coercions,
+                routine = selected.routine,
+            )
+            return AggregateRoutineResolution.Success(call)
+        }
+        return when (candidatesFound) {
+            true -> AggregateRoutineResolution.TypeMismatch
+            false -> AggregateRoutineResolution.NotFound
+        }
     }
 
     /**
@@ -158,133 +245,6 @@ internal class Env(private val session: Session, internal val listener: PErrorLi
         val root = Rex(ref.type, rexOpVarGlobal(ref))
         val tail = calculateMatched(path, refName)
         return if (tail.isEmpty()) root else root.toPath(tail)
-    }
-
-    /**
-     * @return a list of candidate functions that match the [identifier] and number of [args].
-     */
-    fun getCandidates(identifier: Identifier, args: List<Rex>, catalog: Catalog): List<FnOverload>? =
-        getCandidates(identifier, args.size, catalog)
-
-    /**
-     * @return a list of candidate functions that match the [identifier] and number of [args].
-     */
-    fun getCandidates(identifier: Identifier, arity: Int, catalog: Catalog): List<FnOverload>? {
-        // Reject qualified routine names.
-        if (identifier.hasQualifier()) {
-            error("Qualified functions are not supported.")
-        }
-
-        // 1. Search in the current catalog and namespace.
-        val name = identifier.getIdentifier().getText().lowercase() // CASE-NORMALIZED LOWER
-        val variants = catalog.getFunctions(session, name).toList()
-        val candidates = variants.filter { it.signature.arity == arity }
-        if (candidates.isEmpty()) {
-            return null
-        }
-        return candidates
-    }
-
-    /**
-     * @return a list of candidate aggregation functions that match the [path] and [arity].
-     */
-    fun getAggCandidates(path: String, arity: Int, catalog: Catalog): List<AggOverload>? {
-        // 1. Search in the current catalog and namespace.
-        val name = path.lowercase() // CASE-NORMALIZED LOWER
-        val variants = catalog.getAggregations(session, name).toList()
-        val candidates = variants.filter { it.signature.arity == arity }
-        if (candidates.isEmpty()) {
-            return null
-        }
-        return candidates
-    }
-
-    /**
-     * @param identifier
-     * @param args
-     * @return
-     */
-    private fun resolveFn(identifier: Identifier, args: List<Rex>, catalog: Catalog): Rex? {
-
-        // Reject qualified routine names.
-        if (identifier.hasQualifier()) {
-            error("Qualified functions are not supported.")
-        }
-
-        // 1. Search in the current catalog and namespace.
-        val name = identifier.getIdentifier().getText().lowercase() // CASE-NORMALIZED LOWER
-        val variants = catalog.getFunctions(session, name).toList()
-        if (variants.isEmpty()) {
-            return null
-        }
-
-        // 2. Resolve
-        val match = FnResolver.resolve(variants, args.map { it.type })
-        // If Type mismatch, then we return a missingOp whose trace is all possible candidates.
-        if (match == null) {
-            return null
-        }
-        return when (match) {
-            is FnMatch.Dynamic -> {
-                val candidates = match.candidates.map {
-                    // Create an internal typed reference for every candidate
-                    rexOpCallDynamicCandidate(
-                        fn = refFn(
-                            catalog = catalog.getName(),
-                            name = Name.of(name),
-                            signature = it,
-                        ),
-                        coercions = emptyList(), // TODO: Remove this from the plan
-                    )
-                }
-                // Rewrite as a dynamic call to be typed by PlanTyper
-                Rex(CompilerType(PType.dynamic()), Rex.Op.Call.Dynamic(args, candidates))
-            }
-
-            is FnMatch.Static -> {
-                // Apply the coercions as explicit casts
-                val coercions: List<Rex> = args.mapIndexed { i, arg ->
-                    when (val cast = match.mapping[i]) {
-                        null -> arg
-                        else -> Rex(cast.target, Rex.Op.Cast.Resolved(cast, arg))
-                    }
-                }
-                // Rewrite as a static call to be typed by PlanTyper
-                Rex(CompilerType(PType.dynamic()), Rex.Op.Call.Static(match.function, coercions))
-            }
-        }
-    }
-
-    private fun resolveAgg(
-        path: String,
-        setQuantifier: SetQuantifier,
-        args: List<Rex>,
-        catalog: Catalog
-    ): Rel.Op.Aggregate.Call.Resolved? {
-        // TODO: Eventually, do we want to support sensitive lookup? With a path?
-
-        // 1. Search in the current catalog and namespace.
-        val name = path.lowercase()
-        val candidates = catalog.getAggregations(session, name).toList()
-        if (candidates.isEmpty()) {
-            return null
-        }
-
-        // Invoke existing function resolution logic
-        val argTypes = args.map { it.type }
-        val match = match(candidates, argTypes) ?: return null
-        val agg = match.first
-        val mapping = match.second
-        // Create an internal typed reference
-        val ref = refAgg(catalog.getName(), Name.of(name), agg)
-        // Apply the coercions as explicit casts
-        val coercions: List<Rex> = args.mapIndexed { i, arg ->
-            when (val cast = mapping[i]) {
-                null -> arg
-                else -> rex(cast.target, rexOpCastResolved(cast, arg))
-            }
-        }
-        return relOpAggregateCallResolved(ref, setQuantifier, coercions)
     }
 
     fun resolveCast(input: Rex, target: CompilerType): Rex.Op.Cast.Resolved? {

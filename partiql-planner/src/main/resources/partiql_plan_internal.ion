@@ -9,6 +9,7 @@ imports::{
     fn_signature::'org.partiql.spi.function.FnOverload',
     fn_instance::'org.partiql.spi.function.Fn',
     agg_signature::'org.partiql.spi.function.Agg',
+    routine_ref::'org.partiql.plan.RoutineRef',
     table::'org.partiql.spi.catalog.Table',
   ],
 }
@@ -131,6 +132,7 @@ rex::{
       static::{
         fn: fn_instance,
         args: list::[rex],
+        routine: optional::routine_ref,
       },
 
       // Represents a dynamic function call. If all candidates are exhausted, dynamic calls will return MISSING.
@@ -141,6 +143,7 @@ rex::{
       dynamic::{
         args: list::[rex],
         candidates: list::[candidate],
+        routine: optional::routine_ref,
         _: [
           candidate::{
             fn: '.ref.fn',
@@ -377,7 +380,7 @@ rel::{
       _: [
         call::[
           unresolved::{
-            name: string,
+            identifier: identifier,
             setq: set_quantifier,
             args: list::[rex],
           },
@@ -385,6 +388,7 @@ rel::{
             agg:  '.ref.agg',
             setq: set_quantifier,
             args: list::[rex],
+            routine: optional::routine_ref,
           },
         ],
       ],
