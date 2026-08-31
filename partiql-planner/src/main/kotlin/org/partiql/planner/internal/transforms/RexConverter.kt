@@ -655,12 +655,12 @@ internal object RexConverter {
             if (!id.hasQualifier() && id.matches("TUPLEUNION")) {
                 return visitExprCallTupleUnion(node, context)
             }
-            if (!id.hasQualifier() && id.matches("EXISTS", ignoreCase = true)) {
+            if (id.getIdentifier().matches("EXISTS")) {
                 return visitExprCallExists(node, context)
             }
             // Args
             // SIZE() function should receive collections, not scalars - don't apply scalar coercion
-            val args = if (!id.hasQualifier() && id.matches("SIZE", ignoreCase = true)) {
+            val args = if (id.getIdentifier().matches("SIZE")) {
                 node.args.map { arg -> arg.accept(this, context) }
             } else {
                 node.args.map { visitExprCoerce(it, context) }

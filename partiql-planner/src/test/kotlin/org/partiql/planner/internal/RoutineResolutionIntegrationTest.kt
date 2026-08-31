@@ -157,6 +157,15 @@ class RoutineResolutionIntegrationTest {
     }
 
     @Test
+    fun `qualified collection routines preserve SQL select arguments`() {
+        listOf("exists", "size").forEach { name ->
+            val call = plan("\$system.$name(SELECT x FROM << 1 >> AS x)", Session.empty()).singleCall()
+
+            assertIs<RexSelect>(call.args.single())
+        }
+    }
+
+    @Test
     fun `custom routine system supports qualified and unqualified exact lookup`() {
         val host = TestRoutineCatalog.builder("demo").build()
         val customSystem = TestRoutineCatalog.builder("builtins")
