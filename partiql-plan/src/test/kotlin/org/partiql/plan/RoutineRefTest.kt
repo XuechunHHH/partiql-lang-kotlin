@@ -143,7 +143,7 @@ class RoutineRefTest {
     }
 
     @Test
-    fun identityAwareRewriteUsesCustomFactory() {
+    fun identityAwareRewriteUsesExistingCustomFactory() {
         val operators = TrackingOperators()
         val rewriter = LiteralReplacingRewriter(operators)
         val call = RexCall.create(function, listOf(literal), routineRef)
@@ -183,19 +183,18 @@ class RoutineRefTest {
         var dispatchCount: Int = 0
             private set
 
-        override fun call(function: Fn, args: List<Rex>, routineRef: RoutineRef): RexCall {
+        override fun call(function: Fn, args: List<Rex>): RexCall {
             callCount++
-            return RexCall.create(function, args, routineRef)
+            return RexCall.create(function, args)
         }
 
         override fun dispatch(
             name: String,
             functions: List<FnOverload>,
             args: List<Rex>,
-            routineRef: RoutineRef,
         ): RexDispatch {
             dispatchCount++
-            return RexDispatch.create(name, functions, args, routineRef)
+            return RexDispatch.create(name, functions, args)
         }
     }
 }

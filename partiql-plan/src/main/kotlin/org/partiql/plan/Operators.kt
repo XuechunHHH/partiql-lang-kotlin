@@ -55,6 +55,8 @@ import org.partiql.spi.value.Datum
 /**
  * The [Operators] interface is a factory to instantiate operator implementations.
  *
+ * There is only ONE factory method per operators – i.e. no overloads or defaults.
+ *
  * TODO support defining the type along with the operator's fields.
  */
 public interface Operators {
@@ -279,20 +281,6 @@ public interface Operators {
     public fun call(function: Fn, args: List<Rex>): RexCall = RexCall.create(function, args)
 
     /**
-     * Create a [RexCall] instance with resolved routine identity.
-     *
-     * @param function
-     * @param args
-     * @param routineRef
-     * @return
-     */
-    public fun call(
-        function: Fn,
-        args: List<Rex>,
-        routineRef: RoutineRef,
-    ): RexCall = RexCall.create(function, args, routineRef)
-
-    /**
      * Create a [RexCase] instance for a case-when with dynamic type (case is a reserved word in Java).
      *
      * @param match
@@ -330,22 +318,6 @@ public interface Operators {
      */
     public fun dispatch(name: String, functions: List<FnOverload>, args: List<Rex>): RexDispatch =
         RexDispatch.create(name, functions, args)
-
-    /**
-     * Create a [RexDispatch] instance with resolved routine identity.
-     *
-     * @param name
-     * @param functions
-     * @param args
-     * @param routineRef
-     * @return
-     */
-    public fun dispatch(
-        name: String,
-        functions: List<FnOverload>,
-        args: List<Rex>,
-        routineRef: RoutineRef,
-    ): RexDispatch = RexDispatch.create(name, functions, args, routineRef)
 
     /**
      * Create a [RexError] instance.

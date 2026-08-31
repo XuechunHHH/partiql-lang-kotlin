@@ -32,6 +32,8 @@ import java.util.List;
  */
 public abstract class RexCall extends RexBase {
 
+    private RoutineRef routineRef;
+
     /**
      * Creates a new scalar function expression.
      * @param function the function instance backing the call
@@ -40,7 +42,7 @@ public abstract class RexCall extends RexBase {
      */
     @NotNull
     public static RexCall create(@NotNull Fn function, @NotNull List<Rex> args) {
-        return new Impl(function, args, null);
+        return new Impl(function, args);
     }
 
     /**
@@ -56,7 +58,9 @@ public abstract class RexCall extends RexBase {
             @NotNull List<Rex> args,
             @NotNull RoutineRef routineRef
     ) {
-        return new Impl(function, args, routineRef);
+        RexCall call = new Impl(function, args);
+        call.setRoutineRef(routineRef);
+        return call;
     }
 
     /**
@@ -79,7 +83,16 @@ public abstract class RexCall extends RexBase {
      */
     @Nullable
     public RoutineRef getRoutineRef() {
-        return null;
+        return routineRef;
+    }
+
+    /**
+     * Sets the resolved routine identity.
+     *
+     * @param routineRef the resolved routine identity
+     */
+    public void setRoutineRef(@NotNull RoutineRef routineRef) {
+        this.routineRef = routineRef;
     }
 
     @NotNull
@@ -104,12 +117,10 @@ public abstract class RexCall extends RexBase {
 
         private final Fn function;
         private final List<Rex> args;
-        private final RoutineRef routineRef;
 
-        private Impl(Fn function, List<Rex> args, RoutineRef routineRef) {
+        private Impl(Fn function, List<Rex> args) {
             this.function = function;
             this.args = args;
-            this.routineRef = routineRef;
         }
 
         @NotNull
@@ -122,12 +133,6 @@ public abstract class RexCall extends RexBase {
         @Override
         public List<Rex> getArgs() {
             return args;
-        }
-
-        @Nullable
-        @Override
-        public RoutineRef getRoutineRef() {
-            return routineRef;
         }
     }
 }

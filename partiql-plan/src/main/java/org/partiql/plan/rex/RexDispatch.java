@@ -33,6 +33,8 @@ import java.util.List;
  */
 public abstract class RexDispatch extends RexBase {
 
+    private RoutineRef routineRef;
+
     /**
      * Creates a new RexDispatch instance.
      * @param name dynamic function name
@@ -42,7 +44,7 @@ public abstract class RexDispatch extends RexBase {
      */
     @NotNull
     public static RexDispatch create(String name, List<FnOverload> functions, List<Rex> args) {
-        return new Impl(name, functions, args, null);
+        return new Impl(name, functions, args);
     }
 
     /**
@@ -60,7 +62,9 @@ public abstract class RexDispatch extends RexBase {
             List<Rex> args,
             @NotNull RoutineRef routineRef
     ) {
-        return new Impl(name, functions, args, routineRef);
+        RexDispatch dispatch = new Impl(name, functions, args);
+        dispatch.setRoutineRef(routineRef);
+        return dispatch;
     }
 
     /**
@@ -86,7 +90,16 @@ public abstract class RexDispatch extends RexBase {
      */
     @Nullable
     public RoutineRef getRoutineRef() {
-        return null;
+        return routineRef;
+    }
+
+    /**
+     * Sets the resolved routine identity.
+     *
+     * @param routineRef the resolved routine identity
+     */
+    public void setRoutineRef(@NotNull RoutineRef routineRef) {
+        this.routineRef = routineRef;
     }
 
     @NotNull
@@ -112,13 +125,11 @@ public abstract class RexDispatch extends RexBase {
         private final String name;
         private final List<FnOverload> functions;
         private final List<Rex> args;
-        private final RoutineRef routineRef;
 
-        private Impl(String name, List<FnOverload> functions, List<Rex> args, RoutineRef routineRef) {
+        private Impl(String name, List<FnOverload> functions, List<Rex> args) {
             this.name = name;
             this.functions = functions;
             this.args = args;
-            this.routineRef = routineRef;
         }
 
         @Override
@@ -134,12 +145,6 @@ public abstract class RexDispatch extends RexBase {
         @Override
         public List<Rex> getArgs() {
             return args;
-        }
-
-        @Nullable
-        @Override
-        public RoutineRef getRoutineRef() {
-            return routineRef;
         }
     }
 }

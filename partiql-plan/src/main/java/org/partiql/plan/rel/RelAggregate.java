@@ -53,7 +53,7 @@ public abstract class RelAggregate extends RelBase {
      */
     @NotNull
     public static Measure measure(@NotNull Agg agg, @NotNull List<Rex> args, boolean distinct) {
-        return new Measure(agg, args, distinct, null);
+        return new Measure(agg, args, distinct);
     }
 
     /**
@@ -138,7 +138,14 @@ public abstract class RelAggregate extends RelBase {
         private final boolean distinct;
         private final RoutineRef routineRef;
 
-        private Measure(Agg agg, List<Rex> args, boolean distinct, RoutineRef routineRef) {
+        private Measure(Agg agg, List<Rex> args, boolean distinct) {
+            this.agg = agg;
+            this.args = args;
+            this.distinct = distinct;
+            this.routineRef = null;
+        }
+
+        private Measure(Agg agg, List<Rex> args, boolean distinct, @NotNull RoutineRef routineRef) {
             this.agg = agg;
             this.args = args;
             this.distinct = distinct;
@@ -169,7 +176,9 @@ public abstract class RelAggregate extends RelBase {
 
         @NotNull
         public Measure copy(@NotNull List<Rex> args) {
-            return new Measure(agg, args, distinct, routineRef);
+            return routineRef == null
+                    ? new Measure(agg, args, distinct)
+                    : new Measure(agg, args, distinct, routineRef);
         }
     }
 
