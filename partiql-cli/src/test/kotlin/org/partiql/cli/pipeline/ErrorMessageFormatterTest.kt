@@ -21,6 +21,7 @@ import org.partiql.spi.errors.PError
 import org.partiql.spi.errors.PErrorKind
 import org.partiql.spi.errors.Severity
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 
 class ErrorMessageFormatterTest {
 
@@ -45,5 +46,29 @@ class ErrorMessageFormatterTest {
         assertContains(message, "Ambiguous function")
         assertContains(message, "scalar demo.echo")
         assertContains(message, "aggregate demo.echo")
+    }
+
+    @Test
+    fun `formats ambiguous function without candidates`() {
+        listOf(
+            mapOf<String, Any>("FN_ID" to Identifier.regular("demo", "echo")),
+            mapOf<String, Any>(
+                "FN_ID" to Identifier.regular("demo", "echo"),
+                "CANDIDATES" to emptyList<String>(),
+            ),
+        ).forEach { properties ->
+            val error = PError(
+                PError.FUNCTION_AMBIGUOUS,
+                Severity.ERROR(),
+                PErrorKind.SEMANTIC(),
+                null,
+                properties,
+            )
+
+            assertEquals(
+                "e: [semantic] Ambiguous function demo.echo.",
+                ErrorMessageFormatter.message(error),
+            )
+        }
     }
 }
