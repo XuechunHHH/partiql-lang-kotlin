@@ -1,0 +1,24 @@
+public final class org/partiql/extensions/functions/compat/datetime/DateAdd {
+	public static fun overloads ()Ljava/util/List;
+}
+
+public final class org/partiql/extensions/functions/compat/datetime/UtcNow {
+	public static fun overloads ()Ljava/util/List;
+}
+
+public final class org/partiql/extensions/functions/custom/collection/Contains {
+	public static fun overloads ()Ljava/util/List;
+}
+
+public final class org/partiql/extensions/functions/custom/conversion/HexToBigInt {
+	public static fun overloads ()Ljava/util/List;
+}
+
+public final class org/partiql/extensions/functions/custom/datetime/ToUnixTime {
+	public static fun overloads ()Ljava/util/List;
+}
+
+public final class org/partiql/extensions/functions/custom/math/Pow {
+	public static fun overloads ()Ljava/util/List;
+}
+
