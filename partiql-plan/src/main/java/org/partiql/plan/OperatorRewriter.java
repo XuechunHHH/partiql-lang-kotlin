@@ -26,6 +26,8 @@ import org.partiql.plan.rex.RexStruct.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.partiql.plan.rex.RoutineRefAccessKt.attachRoutineRef;
+
 /**
  * Operator rewriter is an abstract base visitor which recursively rewrites an operator tree.
  */
@@ -430,7 +432,7 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
             RoutineRef routineRef = rex.getRoutineRef();
             RexCall newOp = operators.call(rex.getFunction(), args_new);
             if (routineRef != null) {
-                newOp.setRoutineRef(routineRef);
+                attachRoutineRef(newOp, routineRef);
             }
             newOp.setType(rex.getType());
             return newOp;
@@ -511,7 +513,7 @@ public abstract class OperatorRewriter<C> implements OperatorVisitor<Operator, C
             RoutineRef routineRef = rex.getRoutineRef();
             RexDispatch newOp = operators.dispatch(rex.getName(), rex.getFunctions(), args_new);
             if (routineRef != null) {
-                newOp.setRoutineRef(routineRef);
+                attachRoutineRef(newOp, routineRef);
             }
             newOp.setType(rex.getType());
             return newOp;

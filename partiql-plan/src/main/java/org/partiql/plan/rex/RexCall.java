@@ -91,7 +91,7 @@ public abstract class RexCall extends RexBase {
      *
      * @param routineRef the resolved routine identity
      */
-    public void setRoutineRef(@NotNull RoutineRef routineRef) {
+    void setRoutineRef(@NotNull RoutineRef routineRef) {
         this.routineRef = routineRef;
     }
 

@@ -749,7 +749,6 @@ public abstract class org/partiql/plan/rex/RexCall : org/partiql/plan/rex/RexBas
 	public abstract fun getFunction ()Lorg/partiql/spi/function/Fn;
 	public fun getRoutineRef ()Lorg/partiql/plan/RoutineRef;
 	protected fun operands ()Ljava/util/List;
-	public fun setRoutineRef (Lorg/partiql/plan/RoutineRef;)V
 	protected fun type ()Lorg/partiql/plan/rex/RexType;
 }
 
@@ -799,7 +798,6 @@ public abstract class org/partiql/plan/rex/RexDispatch : org/partiql/plan/rex/Re
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getRoutineRef ()Lorg/partiql/plan/RoutineRef;
 	protected final fun operands ()Ljava/util/List;
-	public fun setRoutineRef (Lorg/partiql/plan/RoutineRef;)V
 	protected final fun type ()Lorg/partiql/plan/rex/RexType;
 }
 

@@ -98,7 +98,7 @@ public abstract class RexDispatch extends RexBase {
      *
      * @param routineRef the resolved routine identity
      */
-    public void setRoutineRef(@NotNull RoutineRef routineRef) {
+    void setRoutineRef(@NotNull RoutineRef routineRef) {
         this.routineRef = routineRef;
     }
 
